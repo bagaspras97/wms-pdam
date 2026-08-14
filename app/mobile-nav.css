@@ -6,3 +6,4 @@
 @media(min-width:951px){.shell{display:block!important}.content{margin-left:246px}}
 @media(max-width:950px){.sidebar{position:static!important;width:auto!important;height:100dvh!important}.content{margin-left:0}}
 @media(max-width:680px){.content{margin-left:0}.sidebar{width:min(82vw,300px)!important}}
+@media(max-width:680px){.sidebar{position:fixed!important;left:0;top:0;bottom:0;width:min(82vw,300px)!important;height:100dvh!important;max-height:100dvh;transform:translateX(-105%);overflow-y:auto;z-index:20}.sidebar.mobile-open{transform:translateX(0)}.content{margin-left:0;width:100%;min-width:0}.shell{display:block!important;min-height:100dvh}}
