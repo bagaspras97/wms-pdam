@@ -1,5 +1,13 @@
 .report-filter-panel {
-  overflow: hidden;
+  overflow: visible;
+  position: relative;
+  z-index: 1;
+}
+
+html,
+body {
+  min-height: 100%;
+  overflow-y: auto;
 }
 
 .report-filters {
