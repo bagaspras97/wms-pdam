@@ -30,6 +30,13 @@ const nav: [View, string, string][] = [
   ["repairs", "Kode perbaikan", "06"],
   ["reports", "Laporan", "07"],
 ];
+const routeFor = (view: View, id?: string) => view === "dashboard" ? "/" : view === "detail" && id ? `/aktivitas/${encodeURIComponent(id)}` : `/${view === "new" ? "aktivitas-baru" : view}`;
+const viewForPath = (path: string): { view: View; id?: string } => {
+  const clean = path.replace(/\/$/, "") || "/";
+  if (clean.startsWith("/aktivitas/")) return { view: "detail", id: decodeURIComponent(clean.slice("/aktivitas/".length)) };
+  const map: Record<string, View> = { "/": "dashboard", "/aktivitas": "activities", "/aktivitas-baru": "new", "/tools": "tools", "/references": "references", "/repairs": "repairs", "/reports": "reports" };
+  return { view: map[clean] ?? "dashboard" };
+};
 const date = (v: string) =>
   new Intl.DateTimeFormat("id-ID", {
     dateStyle: "medium",
@@ -49,12 +56,18 @@ export default function App() {
     [login, setLogin] = useState(false),
     [role, setRole] = useState<"admin" | "petugas">("admin"),
     [teamId, setTeamId] = useState<string>(),
-    [view, setView] = useState<View>("dashboard"),
+    [view, setView] = useState<View>(() => typeof window === "undefined" ? "dashboard" : viewForPath(window.location.pathname).view),
     [data, setData] = useState<DemoState>(initialState),
     [selected, setSelected] = useState<string>(),
     [menuOpen, setMenuOpen] = useState(false),
     [toast, setToast] = useState(""),
     [remoteReady, setRemoteReady] = useState(!supabase);
+  useEffect(() => {
+    const syncRoute = () => { const next = viewForPath(window.location.pathname); setView(next.view); setSelected(next.id); };
+    window.addEventListener("popstate", syncRoute);
+    syncRoute();
+    return () => window.removeEventListener("popstate", syncRoute);
+  }, []);
   useEffect(() => {
     const d = localStorage.getItem("monitor-pdam-demo");
     if (d) {
@@ -95,11 +108,13 @@ export default function App() {
       setToast(x);
       setTimeout(() => setToast(""), 2500);
     },
-    go = (v: View) => {
-      setView(v);
+     go = (v: View) => {
+       window.history.pushState({}, "", routeFor(v));
+       setView(v);
       setSelected(undefined);
     },
-    open = (id: string) => {
+     open = (id: string) => {
+       window.history.pushState({}, "", routeFor("detail", id));
       setSelected(id);
       setView("detail");
     },
