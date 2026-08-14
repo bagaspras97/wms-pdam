@@ -26,7 +26,7 @@ const nav: [View, string, string][] = [
   ["activities", "Aktivitas", "02"],
   ["new", "Aktivitas baru", "03"],
   ["tools", "Daftar alat", "04"],
-  ["references", "Wilayah & dusun", "05"],
+  ["references", "Area & dusun", "05"],
   ["repairs", "Kode perbaikan", "06"],
   ["reports", "Laporan", "07"],
 ];
@@ -491,19 +491,19 @@ function ActivityTable({
 }) {
   return (
     <div className="table-wrap">
-      <table>
+       <table className={report ? "report-table" : undefined}>
         <thead>
           <tr>
-            <th>ID</th>
-            <th>Aktivitas & lokasi</th>
-            <th>Target</th>
-            {report && <><th>Wilayah</th><th>Jenis perbaikan</th><th>Pembayaran</th></>}
+             <th>{report ? "No." : "ID"}</th>
+             <th>Uraian pekerjaan</th>
+             <th>{report ? "Tanggal" : "Target"}</th>
+             {report && <><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></>}
           </tr>
         </thead>
         <tbody>
-          {rows.map((x) => (
+           {rows.map((x, index) => (
             <tr key={x.id} onClick={() => open(x.id)}>
-              <td className="mono accent">{x.id}</td>
+               <td className="mono accent">{report ? index + 1 : x.id}</td>
               <td>
                 <b>{x.name}</b>
                 <small className="block">{x.address}</small>
@@ -512,7 +512,7 @@ function ActivityTable({
                 {date(x.targetDate)}{" "}
                 {late(x) && <b className="late">Terlambat</b>}
               </td>
-              {report && <><td>{x.regionName ?? x.regionCode ?? "—"}</td><td>{x.repairItems?.map((item) => item.name).join(", ") || "—"}</td><td><span className={`payment-badge ${(x.paymentStatus ?? "Belum dibayar").toLowerCase().replaceAll(" ", "-")}`}>{x.paymentStatus ?? "Belum dibayar"}</span></td></>}
+              {report && <><td>{x.toolsUsed?.join(", ") || "—"}</td><td className="mono">{rupiah(x.repairItems?.[0]?.pricePerPoint ?? 0)}</td><td className="mono">{x.repairItems?.[0]?.points ?? 0}</td><td className="mono"><b>{rupiah((x.repairItems ?? []).reduce((sum, item) => sum + item.pricePerPoint * item.points, 0))}</b></td><td><span className={`payment-badge ${(x.paymentStatus ?? "Belum dibayar").toLowerCase().replaceAll(" ", "-")}`}>{x.paymentStatus ?? "Belum dibayar"}</span></td></>}
             </tr>
           ))}
         </tbody>
@@ -605,12 +605,12 @@ function NewActivity({
       <Head
         over="Penugasan"
         title="Buat aktivitas baru"
-        desc="Tetapkan kode perbaikan, wilayah, dusun, alat, dan tim pelaksana."
+        desc="Tetapkan uraian pekerjaan, area, dusun, alat, dan tanggal pekerjaan."
       />
       <form className="panel form" onSubmit={submit}>
         <div className="form-grid">
           <label className="span-2">
-            Nama aktivitas
+             Uraian pekerjaan
             <input
               className="input"
               name="name"
@@ -619,12 +619,12 @@ function NewActivity({
             />
           </label>
           <label>
-            Kode wilayah
+             Area
             <AppSelect name="regionCode" value={selectedRegion} onValueChange={(value)=>{setSelectedRegion(value);setSelectedHamlet("")}} options={regions.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))}/>
           </label>
           <label>
-            Nama dusun
-            <AppSelect name="hamlet" value={selectedHamlet} onValueChange={setSelectedHamlet} allowCustom placeholder="Pilih atau ketik nama dusun" options={regionHamlets.map((name)=>({value:name,label:name}))}/>
+             Dusun
+            <AppSelect name="hamlet" value={selectedHamlet} onValueChange={setSelectedHamlet} allowCustom placeholder="Pilih atau ketik dusun" options={regionHamlets.map((name)=>({value:name,label:name}))}/>
           </label>
           <label>
             Kode perbaikan
@@ -637,7 +637,7 @@ function NewActivity({
           <div className="repair-estimate span-2"><span>Harga per titik <b>{rupiah(repair?.pricePerPoint ?? 0)}</b></span><span>Total otomatis disetujui <strong>{rupiah((repair?.pricePerPoint ?? 0) * points)}</strong></span></div>
           <div className="tool-field span-2"><label>Jenis alat yang digunakan</label><div className="tool-input-wrap"><div className="tool-picker"><input className="input" value={toolInput} onFocus={()=>setShowToolOptions(true)} onChange={(event)=>{setToolInput(event.target.value);setShowToolOptions(true)}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();addTool()}if(event.key==="Escape")setShowToolOptions(false)}} placeholder="Pilih atau ketik alat lalu tekan Enter"/><button className="tool-picker-toggle" type="button" aria-label="Buka daftar alat" aria-expanded={showToolOptions} onClick={()=>setShowToolOptions(!showToolOptions)}><span aria-hidden="true"/></button>{showToolOptions&&<div className="tool-options">{availableTools.length?availableTools.map((item)=><button type="button" key={item} onClick={()=>addToolValue(item)}>{item}</button>):<span>{toolInput.trim()?"Tidak ada alat yang cocok. Tekan Enter untuk menambahkan alat baru.":"Belum ada alat lain yang tersedia."}</span>}</div>}</div><button type="button" className="btn" onClick={addTool}>Tambah</button></div><div className="tool-tags">{tools.map(item=><span className="tool-tag" key={item}>{item}<button type="button" aria-label={`Hapus ${item}`} onClick={()=>setTools(tools.filter(tool=>tool!==item))}>×</button></span>)}</div><small className="tool-helper">Klik kolom untuk melihat semua alat, atau ketik alat baru lalu tekan Enter.</small></div>
           <label>
-            Target selesai
+             Tanggal
             <input
               className="input"
               name="target"
@@ -728,7 +728,7 @@ function Detail({
             <h2>Informasi pekerjaan</h2>
             <dl className="facts">
               <div>
-                <dt>Wilayah / dusun</dt>
+                <dt>Area / Dusun</dt>
                 <dd>{a.regionCode ? `${a.regionCode} · ${a.regionName} · Dusun ${a.hamlet}` : "Belum ditentukan"}</dd>
               </div>
               <div>
@@ -1188,7 +1188,7 @@ function HamletMaster({ data, setData, flash }: { data: DemoState; setData: Reac
   const add = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const name = String(new FormData(event.currentTarget).get("hamletName")).trim();
-    if (!region) return setError("Pilih kode wilayah terlebih dahulu.");
+    if (!region) return setError("Pilih area terlebih dahulu.");
     if (hamlets.some((item) => item.toLowerCase() === name.toLowerCase())) return setError("Nama dusun sudah tersedia pada wilayah ini.");
     setData((state) => ({ ...state, regions: state.regions.map((item) => item.code === selectedRegion ? { ...item, hamlets: [...(item.hamlets ?? []), name] } : item) }));
     event.currentTarget.reset();
@@ -1247,8 +1247,9 @@ function RepairMaster({ data, setData, flash }: { data: DemoState; setData: Reac
 }
 
 function Reports({ data }: { data: DemoState }) {
-  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState("");
-  const filtered = data.activities.filter((activity) => { const day = activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
+  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState(""), [sort, setSort] = useState("newest"), [filterOpen, setFilterOpen] = useState(false);
+  const filteredBase = data.activities.filter((activity) => { const day = activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
+  const filtered = [...filteredBase].sort((a, b) => sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.name.localeCompare(b.name) : b.createdAt.localeCompare(a.createdAt));
   const approved = filtered
     .flatMap((x) => x.expenses)
     .filter((x) => x.status === "Disetujui")
@@ -1265,24 +1266,24 @@ function Reports({ data }: { data: DemoState }) {
             onClick={() => {
               const csv = [
                 [
-                  "ID",
-                  "Aktivitas",
-                  "Lokasi",
-                  "Kode wilayah",
-                  "Kode perbaikan",
+                  "No.",
+                  "Uraian pekerjaan",
+                  "Tanggal",
+                  "Alat",
+                  "Harga satuan",
+                  "Jumlah titik",
+                  "Total harga",
                   "Pembayaran",
-                  "Pengeluaran",
                 ],
-                  ...filtered.map((a) => [
-                  a.id,
+                  ...filtered.map((a, index) => [
+                  index + 1,
                   a.name,
-                  a.address,
-                  a.regionCode ?? "",
-                  a.repairItems?.map((item) => item.code).join("; ") ?? "",
+                  date(a.targetDate),
+                  a.toolsUsed?.join("; ") ?? "",
+                  a.repairItems?.[0]?.pricePerPoint ?? 0,
+                  a.repairItems?.[0]?.points ?? 0,
+                  (a.repairItems ?? []).reduce((sum, item) => sum + item.pricePerPoint * item.points, 0),
                   a.paymentStatus ?? "Belum dibayar",
-                  a.expenses
-                    .filter((e) => e.status === "Disetujui")
-                    .reduce((s, e) => s + e.amount, 0),
                 ]),
               ];
               const b = new Blob([
@@ -1325,7 +1326,28 @@ function Reports({ data }: { data: DemoState }) {
       </div>
       <section className="panel report-filter-panel">
         <div className="report-filters"><label>Dari tanggal<input className="input" type="date" value={from} onChange={(event)=>setFrom(event.target.value)}/></label><label>Sampai tanggal<input className="input" type="date" value={to} onChange={(event)=>setTo(event.target.value)}/></label><label>Kode wilayah<AppSelect value={region} onValueChange={setRegion} options={[{value:"",label:"Semua wilayah"},...data.regions.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label><label>Kode perbaikan<AppSelect value={repair} onValueChange={setRepair} options={[{value:"",label:"Semua kode"},...data.repairCodes.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label><label>Kondisi pembayaran<AppSelect value={payment} onValueChange={setPayment} options={[{value:"",label:"Semua kondisi"},{value:"Belum dibayar",label:"Belum dibayar"},{value:"Sudah dibayar",label:"Sudah dibayar"}]}/></label></div>
-        <ActivityTable rows={filtered} open={() => {}} report />
+         <button type="button" className="report-filter-mobile-trigger" onClick={()=>setFilterOpen(true)}>Filter & urutkan</button>
+         {filterOpen&&<button type="button" className="report-filter-overlay" aria-label="Tutup filter" onClick={()=>setFilterOpen(false)}/>}<div className={`report-filter-layout ${filterOpen?"is-open":""}`}>
+           <div className="report-filter-modal-head"><div><b>Filter laporan</b><small>Atur periode, data, dan urutan laporan.</small></div><button type="button" aria-label="Tutup filter" onClick={()=>setFilterOpen(false)}>×</button></div>
+           <section className="report-filter-group date-filter-group">
+             <div className="report-filter-heading"><span>01</span><div><b>Periode laporan</b><small>Batasi data berdasarkan rentang tanggal.</small></div></div>
+             <div className="report-filter-fields date-fields">
+               <label>Dari tanggal<input className="input" type="date" value={from} onChange={(event)=>setFrom(event.target.value)}/></label>
+               <label>Sampai tanggal<input className="input" type="date" value={to} onChange={(event)=>setTo(event.target.value)}/></label>
+             </div>
+           </section>
+           <section className="report-filter-group data-filter-group">
+             <div className="report-filter-heading"><span>02</span><div><b>Filter & urutan</b><small>Saring hasil dan tentukan urutan tabel.</small></div></div>
+             <div className="report-filter-fields data-fields">
+               <label>Area<AppSelect value={region} onValueChange={setRegion} options={[{value:"",label:"Semua area"},...data.regions.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label>
+               <label>Kode perbaikan<AppSelect value={repair} onValueChange={setRepair} options={[{value:"",label:"Semua kode"},...data.repairCodes.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label>
+               <label>Kondisi pembayaran<AppSelect value={payment} onValueChange={setPayment} options={[{value:"",label:"Semua kondisi"},{value:"Belum dibayar",label:"Belum dibayar"},{value:"Sudah dibayar",label:"Sudah dibayar"}]}/></label>
+               <label>Urutkan<AppSelect value={sort} onValueChange={setSort} options={[{value:"newest",label:"Terbaru"},{value:"oldest",label:"Terlama"},{value:"name",label:"Nama pekerjaan"}]}/></label>
+             </div>
+           </section>
+           <div className="report-filter-modal-actions"><button type="button" className="btn primary" onClick={()=>setFilterOpen(false)}>Tampilkan hasil</button></div>
+         </div>
+         <ActivityTable rows={filtered} open={() => {}} report />
       </section>
     </div>
   );

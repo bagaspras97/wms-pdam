@@ -13,8 +13,8 @@ body {
 .report-filters {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 12px;
-  padding: 16px 18px;
+  gap: 18px;
+  padding: 22px 24px 24px;
   border-bottom: 1px solid var(--line);
   background: #fafbf9;
 }
@@ -43,21 +43,45 @@ body {
 
 .report-filters label {
   display: grid;
-  gap: 7px;
+  gap: 8px;
   min-width: 0;
   color: var(--muted);
   font-size: 11px;
   font-weight: 700;
 }
+.report-sort-row{display:flex;justify-content:flex-end;padding:14px 24px;border-bottom:1px solid var(--line);background:#fff}.report-sort-row label{display:grid;gap:7px;width:min(220px,100%);font-size:11px;font-weight:700;color:var(--muted)}
+
+.report-filter-panel > .report-filters,
+.report-filter-panel > .report-sort-row{display:none}
+
+.report-filter-layout{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.7fr);background:#fbfcfb;border-bottom:1px solid var(--line)}
+.report-filter-group{min-width:0;padding:22px 24px 24px}.date-filter-group{border-right:1px solid var(--line)}
+.report-filter-heading{display:flex;align-items:flex-start;gap:11px;margin-bottom:20px}.report-filter-heading>span{display:grid;place-items:center;width:28px;height:28px;border-radius:8px;background:#e8f2ed;color:var(--accent);font:700 10px "Geist Mono",Consolas,monospace}.report-filter-heading b,.report-filter-heading small{display:block}.report-filter-heading b{font-size:13px}.report-filter-heading small{margin-top:3px;color:var(--muted);font-size:10px;font-weight:400}
+.report-filter-fields{display:grid;gap:14px}.date-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.data-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.report-filter-fields label{display:grid;gap:8px;min-width:0;color:var(--muted);font-size:11px;font-weight:700}.report-filter-fields .input,.report-filter-fields .app-select{min-height:46px}.report-filter-fields .app-select>.input{min-height:46px;padding:0 48px 0 14px}.report-filter-fields .app-select-toggle{width:44px;height:46px}
+.report-filter-fields .input:focus,.report-filter-fields .app-select:focus-within{border-color:var(--accent)}
+.report-filter-mobile-trigger,.report-filter-overlay,.report-filter-modal-head,.report-filter-modal-actions{display:none}
+
+@media(min-width:1201px){.report-filter-layout{grid-template-columns:minmax(330px,.75fr) minmax(620px,1.5fr)}.date-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.data-fields{grid-template-columns:repeat(4,minmax(0,1fr))}.report-filter-group{padding:18px 20px 20px}.report-filter-heading{margin-bottom:14px}.report-filter-heading small{display:none}}
+
+@media(max-width:1200px){body:has(.report-filter-layout.is-open){overflow:hidden}.report-filter-panel{padding:14px}.report-filter-mobile-trigger{display:flex;width:100%;align-items:center;justify-content:space-between;border:1px solid var(--line);border-radius:10px;background:#fff;padding:13px 15px;font-weight:700}.report-filter-mobile-trigger::after{content:"Atur";color:var(--accent);font-size:11px}.report-filter-overlay{display:block;position:fixed;inset:0;z-index:29;border:0;background:rgba(17,28,23,.52);backdrop-filter:blur(2px)}.report-filter-layout{display:none}.report-filter-layout.is-open{display:block;position:fixed;z-index:30;inset:50% auto auto 50%;width:min(680px,calc(100vw - 32px));max-height:calc(100dvh - 32px);overflow:auto;transform:translate(-50%,-50%);border:1px solid var(--line);border-radius:16px;background:#fff;box-shadow:0 24px 70px rgba(23,35,30,.2)}.report-filter-modal-head{display:flex;position:sticky;top:0;z-index:2;align-items:center;justify-content:space-between;padding:18px 20px;border-bottom:1px solid var(--line);background:#fff}.report-filter-modal-head b,.report-filter-modal-head small{display:block}.report-filter-modal-head small{margin-top:3px;color:var(--muted);font-size:11px}.report-filter-modal-head button{width:34px;height:34px;border:1px solid var(--line);border-radius:9px;background:#fff;font-size:20px}.report-filter-layout.is-open .date-filter-group{border-right:0;border-bottom:1px solid var(--line)}.report-filter-layout.is-open .date-fields,.report-filter-layout.is-open .data-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.report-filter-modal-actions{display:flex;position:sticky;bottom:0;justify-content:flex-end;padding:14px 20px;border-top:1px solid var(--line);background:#fff}}
+
+.report-filters .input,
+.report-filters .app-select-trigger{min-height:46px;border-radius:11px}
+.report-filters .app-select{min-height:46px}.report-filters .app-select>.input{min-height:46px;padding:0 48px 0 14px}.report-filters .app-select-toggle{height:46px;width:44px}
+.report-filters label{letter-spacing:.01em}
 
 @media (max-width: 1050px) {
   .report-filters {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
+  .report-filter-layout{grid-template-columns:1fr}.date-filter-group{border-right:0;border-bottom:1px solid var(--line)}
 }
 
 @media (max-width: 680px) {
   .report-filters {
     grid-template-columns: 1fr;
   }
+  .report-filter-group{padding:18px 16px 20px}.date-fields,.data-fields{grid-template-columns:1fr}.report-filter-heading{margin-bottom:16px}
+  .report-filter-layout.is-open{width:calc(100vw - 20px);max-height:calc(100dvh - 20px)}.report-filter-layout.is-open .date-fields,.report-filter-layout.is-open .data-fields{grid-template-columns:1fr}.report-filter-modal-actions .btn{width:100%}
 }
+.report-table td:nth-child(4){max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}

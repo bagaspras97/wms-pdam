@@ -225,3 +225,8 @@
   }
 
 }
+.tool-input-wrap > .btn{display:none}
+.report-table td:nth-child(4){max-width:240px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.report-filters label:nth-child(3){font-size:0}.report-filters label:nth-child(3)::before{content:"Area";display:block;font-size:12px;font-weight:680;margin-bottom:7px}.report-filters label:nth-child(3)>*{font-size:14px}
+.hamlet-master-panel .panel-head h2,.region-only-grid .panel-head h2{font-size:0}.hamlet-master-panel .panel-head h2::after{content:"Nama dusun berdasarkan area";font-size:15px}.region-only-grid .panel-head h2::after{content:"Area";font-size:15px}.hamlet-master-panel .master-region-filter label{font-size:0}.hamlet-master-panel .master-region-filter label::before{content:"Area";display:block;font-size:12px;font-weight:680;margin-bottom:7px}.hamlet-master-panel th:nth-child(2){font-size:0}.hamlet-master-panel th:nth-child(2)::after{content:"Area";font-size:10px}
+:has(.region-only-grid) .page-head h1{font-size:0}:has(.region-only-grid) .page-head h1::after{content:"Area & dusun";font-size:30px}:has(.region-only-grid) .page-head p{font-size:0}:has(.region-only-grid) .page-head p::after{content:"Kelola area dan daftar dusun yang berada di dalamnya.";font-size:14px}
