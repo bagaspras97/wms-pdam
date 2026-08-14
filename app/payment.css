@@ -1,0 +1,33 @@
+.payment-inline {
+  margin-top: 18px;
+  padding-top: 18px;
+  border-top: 1px solid var(--line);
+}
+
+.payment-inline .panel-head {
+  align-items: center;
+}
+
+.payment-badge {
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: #f6ecd9;
+  color: var(--amber);
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.payment-badge.sudah-dibayar {
+  background: #e4f0e8;
+  color: var(--accent);
+}
+
+.payment-inline small {
+  display: block;
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.payment-action {
+  width: 100%;
+}

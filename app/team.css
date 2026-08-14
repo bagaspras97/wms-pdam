@@ -1,0 +1,1 @@
+.team-member{display:flex;align-items:center;gap:12px;padding:14px 18px;border-bottom:1px solid var(--line)}.team-member:last-child{border-bottom:0}.member-number{display:grid;place-items:center;width:30px;height:30px;border-radius:9px;background:#edf3ef;color:var(--accent);font-size:10px}

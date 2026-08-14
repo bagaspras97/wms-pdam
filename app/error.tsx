@@ -1,0 +1,1 @@
+"use client";export default function ErrorPage({reset}:{reset:()=>void}){return <div className="page"><div className="panel empty"><h2>Data tidak dapat dimuat</h2><p>Coba ulangi. Jika masalah berlanjut, hubungi pengelola server.</p><button className="btn primary" onClick={reset}>Coba lagi</button></div></div>}

@@ -1,0 +1,1 @@
+export default function Loading(){return <div className="page"><div style={{height:32,width:280,background:"#e4e9e6",borderRadius:8,marginBottom:28}}/><div className="grid-metrics">{[1,2,3,4].map(x=><div className="metric" key={x}><span>Memuat data</span><b style={{color:"#dfe5e1"}}>000</b></div>)}</div></div>}
