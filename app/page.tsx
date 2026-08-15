@@ -253,19 +253,19 @@ function Login({ submit }: { submit: () => void }) {
   return (
     <main className="login">
       <section className="login-art">
-        <div className="eyebrow">Monitoring operasional</div>
+        <div className="login-brand"><span className="login-brandmark">M</span><div><strong>Monitor PDAM</strong><small>Operasional lapangan</small></div></div>
         <div>
           <h1>
-            Setiap pekerjaan
+            Aktivitas lapangan
             <br />
-            terpantau jelas.
+            tercatat lebih jelas.
           </h1>
           <p>
-            Pantau aktivitas lapangan, progres pekerjaan, lokasi, dan penggunaan
-            biaya dalam satu website.
+            Kelola pekerjaan, area, tarif perbaikan, alat, dan pembayaran
+            melalui satu sistem operasional.
           </p>
         </div>
-        <small className="mono">PROTOTYPE V1 · DATA LOKAL</small>
+        <small className="login-art-foot">PDAM · Zona waktu WITA</small>
       </section>
       <section className="login-form">
         <form
