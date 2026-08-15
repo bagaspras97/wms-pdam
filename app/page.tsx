@@ -383,7 +383,7 @@ function Dashboard({
         <Metric
           l="Terlambat"
           v={data.activities.filter(late).length}
-          s="melewati target"
+           s="melewati tanggal"
           warn
         />
         <Metric
@@ -511,7 +511,7 @@ function ActivityTable({
           <tr>
              <th>{report ? "No." : "ID"}</th>
              <th>Uraian pekerjaan</th>
-             <th>{report ? "Tanggal" : "Target"}</th>
+             <th>Tanggal</th>
              {report && <><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></>}
           </tr>
         </thead>
@@ -667,7 +667,7 @@ function NewActivity({
           </label>
         </div>
         <div className="form-actions">
-          <button className="btn primary">Buat & tugaskan</button>
+          <button className="btn primary">Buat</button>
         </div>
       </form>
     </div>
@@ -747,7 +747,7 @@ function Detail({
                 <dd>{a.regionCode ? `${a.regionCode} · ${a.regionName} · Dusun ${a.hamlet}` : "Belum ditentukan"}</dd>
               </div>
               <div>
-                <dt>Target</dt>
+                <dt>Tanggal</dt>
                 <dd>
                   {date(a.targetDate)}{" "}
                   {late(a) && <b className="late">Terlambat</b>}
