@@ -19,6 +19,17 @@ export async function migrateStateToTables(state: DemoState) {
   const toolIds = new Map((toolResult.data ?? []).map((item) => [item.name, item.id]));
   const hamletRows: { region_code: string; name: string; active: boolean }[] = [];
   state.regions.forEach((region) => (region.hamlets ?? []).forEach((name) => hamletRows.push({ region_code: region.code, name, active: true })));
+  const desiredHamlets = new Set(hamletRows.map((item) => `${item.region_code}:${item.name.toLocaleLowerCase("id-ID")}`));
+  const managedRegions = new Set(state.regions.map((item) => item.code));
+  const existingHamletsResult = await supabase.from("hamlets").select("id,region_code,name");
+  assertOk("hamlets.select", existingHamletsResult.error);
+  const staleHamletIds = (existingHamletsResult.data ?? [])
+    .filter((item) => managedRegions.has(item.region_code) && !desiredHamlets.has(`${item.region_code}:${item.name.toLocaleLowerCase("id-ID")}`))
+    .map((item) => item.id);
+  if (staleHamletIds.length) {
+    const deleteResult = await supabase.from("hamlets").delete().in("id", staleHamletIds);
+    assertOk("hamlets.delete", deleteResult.error);
+  }
   const hamletResult = hamletRows.length ? await supabase.from("hamlets").upsert(hamletRows, { onConflict: "region_code,name" }).select("id,region_code,name") : { data: [], error: null };
   assertOk("hamlets", hamletResult.error);
   const hamletIds = new Map((hamletResult.data ?? []).map((item) => [`${item.region_code}:${item.name}`, item.id]));
