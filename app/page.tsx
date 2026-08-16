@@ -491,7 +491,7 @@ function Activities({
           className="input search"
           value={q}
           onChange={(e) => setQ(e.target.value)}
-          placeholder="Cari aktivitas atau lokasi..."
+          placeholder="Cari uraian pekerjaan, area, atau dusun..."
         />
       </div>
       <section className="panel">
@@ -537,7 +537,7 @@ function ActivityTable({
         </thead>
         <tbody>
            {rows.map((x, index) => (
-            <tr key={x.id} onClick={() => open(x.id)}>
+            <tr className="clickable-row" key={x.id} onClick={() => open(x.id)}>
                <td className="mono accent">{report ? index + 1 : x.id}</td>
               <td>
                 <b>{x.name}</b>
