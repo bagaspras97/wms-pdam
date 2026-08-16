@@ -293,32 +293,41 @@ function Login({ submit }: { submit: () => void }) {
             );
           }}
         >
-          <div className="login-logo-wrap">
-            <img className="login-logo" src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana" />
-          </div>
+          <header className="login-card-header">
+            <div className="login-logo-wrap">
+              <img className="login-logo" src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana" />
+            </div>
+            <div className="login-app-title">
+              <h1>Opname PDAM</h1>
+            </div>
+          </header>
           {error && <div className="login-error">{error}</div>}
-          <label>
-            Username
-            <input
-              className="input"
-              name="username"
-              defaultValue="admin.demo"
-              autoComplete="username"
-              required
-            />
-          </label>
-          <label>
-            Kata sandi
-            <input
-              className="input"
-              name="password"
-              type="password"
-              defaultValue="demo12345"
-              autoComplete="current-password"
-              required
-            />
-          </label>
-          <button className="btn primary">Masuk</button>
+          <div className="login-fields">
+            <label>
+              <span>Username</span>
+              <input
+                className="input"
+                name="username"
+                defaultValue="admin.demo"
+                placeholder="Masukkan username"
+                autoComplete="username"
+                required
+              />
+            </label>
+            <label>
+              <span>Kata sandi</span>
+              <input
+                className="input"
+                name="password"
+                type="password"
+                defaultValue="demo12345"
+                placeholder="Masukkan kata sandi"
+                autoComplete="current-password"
+                required
+              />
+            </label>
+          </div>
+          <button className="btn primary login-submit">Masuk</button>
         </form>
       </section>
     </main>
@@ -460,6 +469,8 @@ function Activities({
   remove: (id: string) => Promise<void>;
 }) {
   const [q, setQ] = useState("");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
   const [modal, setModal] = useState(false);
   const [editing, setEditing] = useState<Activity | null>(null);
   const rows = data.activities.filter(
@@ -468,6 +479,9 @@ function Activities({
         .toLowerCase()
         .includes(q.toLowerCase()),
   );
+  const pageCount = Math.max(1, Math.ceil(rows.length / pageSize));
+  const currentPage = Math.min(page, pageCount);
+  const pagedRows = rows.slice((currentPage - 1) * pageSize, currentPage * pageSize);
   return (
     <div className="page">
       <Head
@@ -490,15 +504,16 @@ function Activities({
         <input
           className="input search"
           value={q}
-          onChange={(e) => setQ(e.target.value)}
+          onChange={(e) => { setQ(e.target.value); setPage(1); }}
           placeholder="Cari uraian pekerjaan, area, atau dusun..."
         />
       </div>
       <section className="panel">
-          <ActivityTable rows={rows} open={open} onEdit={(activity) => setEditing(activity)} onDelete={(activity) => {
+          <ActivityTable rows={pagedRows} open={open} onEdit={(activity) => setEditing(activity)} onDelete={(activity) => {
             if (!window.confirm(`Hapus opname \"${activity.name}\"?`)) return;
             void remove(activity.id);
           }} />
+          <Pagination page={currentPage} pageSize={pageSize} total={rows.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
       {modal && <div className="opname-modal-backdrop" onMouseDown={() => setModal(false)}>
         <div className="opname-modal" onMouseDown={(event) => event.stopPropagation()}>
@@ -555,6 +570,16 @@ function ActivityTable({
       {!rows.length && <div className="empty">Aktivitas tidak ditemukan.</div>}
     </div>
   );
+}
+
+function Pagination({ page, pageSize, total, onPageChange, onPageSizeChange }: { page: number; pageSize: number; total: number; onPageChange: (page: number) => void; onPageSizeChange?: (size: number) => void }) {
+  const pageCount = Math.max(1, Math.ceil(total / pageSize));
+  const current = Math.min(page, pageCount);
+  if (total <= pageSize) return null;
+  const pages = Array.from({ length: pageCount }, (_, index) => index + 1);
+  const start = (current - 1) * pageSize + 1;
+  const end = Math.min(current * pageSize, total);
+  return <nav className="pagination" aria-label="Navigasi halaman"><div className="pagination-meta"><span>Menampilkan {start}–{end} dari {total} opname</span>{onPageSizeChange && <label>Tampilkan <select value={pageSize} onChange={(event) => onPageSizeChange(Number(event.target.value))}><option value={10}>10</option><option value={25}>25</option><option value={50}>50</option></select> data</label>}</div><div className="pagination-controls"><button type="button" className="btn small" disabled={current === 1} onClick={() => onPageChange(current - 1)}>Sebelumnya</button><div className="pagination-pages">{pages.map((item) => <button type="button" key={item} className={`pagination-page ${item === current ? "active" : ""}`} aria-current={item === current ? "page" : undefined} onClick={() => onPageChange(item)}>{item}</button>)}</div><button type="button" className="btn small" disabled={current === pageCount} onClick={() => onPageChange(current + 1)}>Berikutnya</button></div></nav>;
 }
 function StatusBadge({ value }: { value: Status }) {
   return (
@@ -1317,10 +1342,14 @@ function RepairMaster({ data, setData, flash }: { data: DemoState; setData: Reac
 }
 
 function Reports({ data, officials }: { data: DemoState; officials?: Officials }) {
-  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState(""), [sort, setSort] = useState("newest"), [filterOpen, setFilterOpen] = useState(false);
-  const resetFilters = () => { setFrom(""); setTo(""); setRegion(""); setRepair(""); setPayment(""); setSort("newest"); };
+  const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState(""), [sort, setSort] = useState("newest"), [filterOpen, setFilterOpen] = useState(false), [page, setPage] = useState(1), [pageSize, setPageSize] = useState(10);
+  useEffect(() => { setPage(1); }, [from, to, region, repair, payment, sort]);
+  const resetFilters = () => { setFrom(""); setTo(""); setRegion(""); setRepair(""); setPayment(""); setSort("newest"); setPage(1); };
    const filteredBase = data.activities.filter((activity) => { const day = activity.targetDate?.slice(0, 10) || activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
   const filtered = [...filteredBase].sort((a, b) => sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.name.localeCompare(b.name) : b.createdAt.localeCompare(a.createdAt));
+  const reportPageCount = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const reportPage = Math.min(page, reportPageCount);
+  const pagedFiltered = filtered.slice((reportPage - 1) * pageSize, reportPage * pageSize);
   return (
     <div className="page">
       <Head
@@ -1394,7 +1423,8 @@ function Reports({ data, officials }: { data: DemoState; officials?: Officials }
              </div>
            </section>
          </div>
-         <ActivityTable rows={filtered} open={() => {}} report />
+         <ActivityTable rows={pagedFiltered} open={() => {}} report />
+         <Pagination page={reportPage} pageSize={pageSize} total={filtered.length} onPageChange={setPage} onPageSizeChange={(size) => { setPageSize(size); setPage(1); }} />
       </section>
       <section className="print-report" aria-hidden="true">
         <header className="print-report-head">
