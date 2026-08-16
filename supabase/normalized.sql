@@ -59,6 +59,15 @@ create table if not exists public.activity_tools (
   primary key(activity_id, tool_id)
 );
 
+create table if not exists public.officials (
+  id integer primary key default 1 check (id = 1),
+  kasubag_name text not null default '',
+  kepala_bagian_name text not null default '',
+  admin_name text not null default '',
+  updated_at timestamptz not null default now()
+);
+alter table public.officials add column if not exists admin_name text not null default '';
+
 alter table public.regions enable row level security;
 alter table public.hamlets enable row level security;
 alter table public.repair_codes enable row level security;
@@ -66,12 +75,13 @@ alter table public.tools enable row level security;
 alter table public.activities enable row level security;
 alter table public.activity_repairs enable row level security;
 alter table public.activity_tools enable row level security;
+alter table public.officials enable row level security;
 
-grant select, insert, update, delete on public.regions, public.hamlets, public.repair_codes, public.tools, public.activities, public.activity_repairs, public.activity_tools to anon, authenticated;
+grant select, insert, update, delete on public.regions, public.hamlets, public.repair_codes, public.tools, public.activities, public.activity_repairs, public.activity_tools, public.officials to anon, authenticated;
 grant usage, select on all sequences in schema public to anon, authenticated;
 
 do $$ declare t text; begin
-  foreach t in array array['regions','hamlets','repair_codes','tools','activities','activity_repairs','activity_tools'] loop
+  foreach t in array array['regions','hamlets','repair_codes','tools','activities','activity_repairs','activity_tools','officials'] loop
     execute format('drop policy if exists "anon read %1$s" on public.%1$s', t);
     execute format('create policy "anon read %1$s" on public.%1$s for select to anon, authenticated using (true)', t);
     execute format('drop policy if exists "anon write %1$s" on public.%1$s', t);

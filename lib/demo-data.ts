@@ -56,7 +56,8 @@ export type Activity = {
   history: { status: Status; at: string; note: string }[];
   progressNotes?: { id: string; at: string; note: string; author: string }[];
 };
-export type DemoState = { activities: Activity[]; teams: Team[]; regions: RegionCode[]; repairCodes: RepairCode[]; tools: string[] };
+export type Officials = { kasubag: string; kepalaBagian: string; admin: string };
+export type DemoState = { activities: Activity[]; teams: Team[]; regions: RegionCode[]; repairCodes: RepairCode[]; tools: string[]; officials?: Officials };
 export const rupiah = (n: number) =>
   new Intl.NumberFormat("id-ID", {
     style: "currency",
@@ -64,6 +65,7 @@ export const rupiah = (n: number) =>
     maximumFractionDigits: 0,
   }).format(n);
 export const initialState: DemoState = {
+  officials: { kasubag: "", kepalaBagian: "", admin: "" },
   tools: ["Kunci pipa", "Tang pompa air", "Gergaji pipa", "Mesin bor", "Meteran"],
   regions: [
     { code: "01", name: "Perean Timur", hamlets: ["Dusun A", "Dusun B", "Dusun C"] },

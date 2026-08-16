@@ -1,12 +1,35 @@
 import { DemoState } from "@/lib/demo-data";
 import { supabase } from "@/lib/supabase";
 
+export async function deleteActivityFromTables(activityId: string) {
+  if (!supabase) throw new Error("Koneksi Supabase belum tersedia.");
+
+  // Hapus relasi secara eksplisit agar tetap bekerja walaupun konfigurasi
+  // cascade pada database lama belum mengikuti normalized.sql terbaru.
+  const repairResult = await supabase.from("activity_repairs").delete().eq("activity_id", activityId);
+  if (repairResult.error) throw new Error(`[activity_repairs.delete] ${repairResult.error.message}`);
+
+  const toolResult = await supabase.from("activity_tools").delete().eq("activity_id", activityId);
+  if (toolResult.error) throw new Error(`[activity_tools.delete] ${toolResult.error.message}`);
+
+  const activityResult = await supabase.from("activities").delete().eq("id", activityId).select("id");
+  if (activityResult.error) throw new Error(`[activities.delete] ${activityResult.error.message}`);
+  if (!activityResult.data?.some((item) => item.id === activityId)) {
+    throw new Error("Supabase tidak mengonfirmasi penghapusan opname.");
+  }
+}
+
 export async function migrateStateToTables(state: DemoState) {
   if (!supabase) return;
   const assertOk = (stage: string, error: { message?: string; details?: string; hint?: string; code?: string } | null) => {
     if (!error) return;
     throw new Error(`[${stage}] ${error.message ?? "Supabase request failed"}${error.code ? ` (${error.code})` : ""}${error.details ? ` · ${error.details}` : ""}${error.hint ? ` · ${error.hint}` : ""}`);
   };
+  if (state.officials) {
+    // Tabel ini ditambahkan sebagai migrasi opsional agar versi database lama
+    // tetap dapat menjalankan modul utama sebelum SQL terbaru diterapkan.
+    await supabase.from("officials").upsert({ id: 1, kasubag_name: state.officials.kasubag, kepala_bagian_name: state.officials.kepalaBagian, admin_name: state.officials.admin, updated_at: new Date().toISOString() });
+  }
   const regions = state.regions.map((item) => ({ code: item.code, name: item.name, active: true }));
   const repairs = state.repairCodes.map((item) => ({ code: item.code, name: item.name, price_per_point: item.pricePerPoint, active: true }));
   const tools = state.tools.map((name) => ({ name, active: true }));
@@ -121,5 +144,7 @@ export async function loadStateFromTables(fallback: DemoState): Promise<DemoStat
   const tools = (toolsResult.data ?? []).map((item) => item.name);
   const activities = (activitiesResult.data ?? []).map((item) => item.legacy_payload as DemoState["activities"][number]).filter(Boolean);
   if (!regions.length && !repairCodes.length && !tools.length && !activities.length) return null;
-  return { ...fallback, regions, repairCodes, tools, activities };
+  const officialsResult = await supabase.from("officials").select("kasubag_name,kepala_bagian_name,admin_name").eq("id", 1).maybeSingle();
+  const officials = officialsResult.data ? { kasubag: officialsResult.data.kasubag_name, kepalaBagian: officialsResult.data.kepala_bagian_name, admin: officialsResult.data.admin_name } : fallback.officials;
+  return { ...fallback, regions, repairCodes, tools, activities, officials };
 }

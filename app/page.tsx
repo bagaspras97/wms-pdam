@@ -6,11 +6,12 @@ import {
   Expense,
   initialState,
   Team,
+  Officials,
   rupiah,
   Status,
 } from "@/lib/demo-data";
 import { supabase } from "@/lib/supabase";
-import { loadStateFromTables, migrateStateToTables } from "@/lib/supabase-migration";
+import { deleteActivityFromTables, loadStateFromTables, migrateStateToTables } from "@/lib/supabase-migration";
 declare global { interface HTMLElement { showModal(): void } }
 type View =
   | "dashboard"
@@ -21,7 +22,8 @@ type View =
   | "tools"
   | "references"
   | "repairs"
-  | "reports";
+  | "reports"
+  | "officials";
 const nav: [View, string, string][] = [
   ["dashboard", "Ringkasan", "01"],
   ["activities", "Opname", "02"],
@@ -31,7 +33,7 @@ const routeFor = (view: View, id?: string) => view === "dashboard" ? "/" : view 
 const viewForPath = (path: string): { view: View; id?: string } => {
   const clean = path.replace(/\/$/, "") || "/";
   if (clean.startsWith("/aktivitas/")) return { view: "detail", id: decodeURIComponent(clean.slice("/aktivitas/".length)) };
-  const map: Record<string, View> = { "/": "dashboard", "/aktivitas": "activities", "/aktivitas-baru": "new", "/tools": "tools", "/references": "references", "/repairs": "repairs", "/reports": "reports" };
+  const map: Record<string, View> = { "/": "dashboard", "/aktivitas": "activities", "/aktivitas-baru": "new", "/tools": "tools", "/references": "references", "/repairs": "repairs", "/reports": "reports", "/officials": "officials" };
   return { view: map[clean] ?? "dashboard" };
 };
 const date = (v: string) =>
@@ -90,6 +92,11 @@ export default function App() {
         regions: (stored.regions ?? initialState.regions).map((region) => ({ ...region, name: region.name.replace(/^Percan\b/i, "Perean"), hamlets: region.hamlets ?? [] })),
         repairCodes: stored.repairCodes ?? initialState.repairCodes,
         tools: stored.tools ?? initialState.tools,
+        officials: {
+          kasubag: stored.officials?.kasubag ?? initialState.officials?.kasubag ?? "",
+          kepalaBagian: stored.officials?.kepalaBagian ?? initialState.officials?.kepalaBagian ?? "",
+          admin: stored.officials?.admin ?? initialState.officials?.admin ?? "",
+        },
       });
     }
     if (supabase) void loadStateFromTables(initialState).then((remote) => { if (remote) setData(remote); }, () => undefined).then(() => setRemoteReady(true));
@@ -175,6 +182,7 @@ export default function App() {
               <button className={view === "tools" ? "active" : ""} onClick={() => { go("tools"); setMenuOpen(false); }}>Daftar alat</button>
               <button className={view === "references" ? "active" : ""} onClick={() => { go("references"); setMenuOpen(false); }}>Area & dusun</button>
               <button className={view === "repairs" ? "active" : ""} onClick={() => { go("repairs"); setMenuOpen(false); }}>Kode perbaikan</button>
+              <button className={view === "officials" ? "active" : ""} onClick={() => { go("officials"); setMenuOpen(false); }}>Penandatangan laporan</button>
             </div>}
           </div>}
         </nav>
@@ -207,7 +215,16 @@ export default function App() {
           <Dashboard data={visibleData} go={go} open={open} role={role} />
         )}{" "}
         {view === "activities" && (
-          <Activities data={visibleData} open={open} go={go} role={role} regions={data.regions} repairCodes={data.repairCodes} masterTools={data.tools} save={(a) => { saveActivity(a); flash(`${a.id} berhasil dibuat`); }} update={(a) => { update(a); flash("Opname diperbarui"); }} remove={(id) => { setData((state) => ({ ...state, activities: state.activities.filter((activity) => activity.id !== id) })); flash("Opname dihapus"); }} />
+          <Activities data={visibleData} open={open} go={go} role={role} regions={data.regions} repairCodes={data.repairCodes} masterTools={data.tools} save={(a) => { saveActivity(a); flash(`${a.id} berhasil dibuat`); }} update={(a) => { update(a); flash("Opname diperbarui"); }} remove={async (id) => {
+            try {
+              await deleteActivityFromTables(id);
+              setData((state) => ({ ...state, activities: state.activities.filter((activity) => activity.id !== id) }));
+              flash("Opname dihapus dari database");
+            } catch (error) {
+              console.error("Supabase activity deletion failed:", error);
+              window.alert(`Opname gagal dihapus dari database. ${error instanceof Error ? error.message : String(error)}`);
+            }
+          }} />
         )}{" "}
         {view === "new" && (
           <NewActivity
@@ -237,10 +254,11 @@ export default function App() {
         {view === "expenses" && (
           <Expenses data={data} update={update} flash={flash} />
         )}{" "}
-        {view === "reports" && <Reports data={visibleData} />}
+        {view === "reports" && <Reports data={visibleData} officials={data.officials} />}
         {view === "references" && role === "admin" && <References data={data} setData={setData} flash={flash} />}
          {view === "repairs" && role === "admin" && <RepairMasterV2 data={data} setData={setData} flash={flash} />}
          {view === "tools" && role === "admin" && <ToolMasterV2 data={data} setData={setData} flash={flash} />}
+         {view === "officials" && role === "admin" && <OfficialsMaster officials={data.officials ?? { kasubag: "", kepalaBagian: "", admin: "" }} setOfficials={(officials) => setData((state) => ({ ...state, officials }))} flash={flash} />}
       </main>
       {toast && <div className="toast">{toast}</div>}
     </div>
@@ -428,7 +446,7 @@ function Activities({
   masterTools: DemoState["tools"];
   save: (activity: Activity) => void;
   update: (activity: Activity) => void;
-  remove: (id: string) => void;
+  remove: (id: string) => Promise<void>;
 }) {
   const [q, setQ] = useState("");
   const [modal, setModal] = useState(false);
@@ -468,7 +486,7 @@ function Activities({
       <section className="panel">
           <ActivityTable rows={rows} open={open} onEdit={(activity) => setEditing(activity)} onDelete={(activity) => {
             if (!window.confirm(`Hapus opname \"${activity.name}\"?`)) return;
-            remove(activity.id);
+            void remove(activity.id);
           }} />
       </section>
       {modal && <div className="opname-modal-backdrop" onMouseDown={() => setModal(false)}>
@@ -533,6 +551,13 @@ function StatusBadge({ value }: { value: Status }) {
       {value}
     </span>
   );
+}
+
+function OfficialsMaster({ officials, setOfficials, flash }: { officials: Officials; setOfficials: (officials: Officials) => void; flash: (message: string) => void }) {
+  const [kasubag, setKasubag] = useState(officials.kasubag ?? "");
+  const [kepalaBagian, setKepalaBagian] = useState(officials.kepalaBagian ?? "");
+  const [admin, setAdmin] = useState(officials.admin ?? "");
+  return <div className="page"><Head over="Input data" title="Penandatangan laporan" desc="Atur nama pejabat yang ditampilkan pada cetak laporan opname."/><section className="panel officials-panel"><div className="panel-head"><h2>Penandatangan laporan</h2><span>Pengaturan aktif</span></div><form onSubmit={(event) => { event.preventDefault(); setOfficials({ kasubag: kasubag.trim(), kepalaBagian: kepalaBagian.trim(), admin: admin.trim() }); flash("Nama pejabat diperbarui"); }}><label>Nama Kasubag<input className="input" value={kasubag} onChange={(event) => setKasubag(event.target.value)} placeholder="Contoh: I Made Sujana" /></label><label>Nama Kepala Bagian<input className="input" value={kepalaBagian} onChange={(event) => setKepalaBagian(event.target.value)} placeholder="Contoh: Ni Made Aryani" /></label><label>Nama Administrator<input className="input" value={admin} onChange={(event) => setAdmin(event.target.value)} placeholder="Contoh: I Made Adnyana" /></label><div className="form-actions"><button className="btn primary">Simpan penugasan</button></div></form></section></div>;
 }
 
 function AppSelect({ name, value, defaultValue = "", options, placeholder = "Pilih data", allowCustom = false, className = "", onValueChange }: { name?: string; value?: string; defaultValue?: string; options: { value: string; label: string }[]; placeholder?: string; allowCustom?: boolean; className?: string; onValueChange?: (value: string) => void }) {
@@ -1273,7 +1298,7 @@ function RepairMaster({ data, setData, flash }: { data: DemoState; setData: Reac
   return <div className="page"><Head over="Master data" title="Kode perbaikan" desc="Kelola jenis perbaikan dan harga standar untuk setiap titik pekerjaan."/>{error&&<div className="login-error master-error">{error}</div>}<section className="panel repair-master-panel"><div className="panel-head"><h2>Jenis & tarif perbaikan</h2><span>{data.repairCodes.length} kode</span></div><div className="table-wrap"><table><thead><tr><th>Kode</th><th>Jenis perbaikan</th><th>Harga / titik</th><th>Aksi</th></tr></thead><tbody>{data.repairCodes.map(item=><tr key={item.code}><td><b className="code-box mono">{item.code}</b></td><td>{item.name}</td><td className="mono"><b>{rupiah(item.pricePerPoint)}</b></td><td className="master-actions"><button type="button" className="btn small" onClick={()=>edit(item)}>Edit</button><button type="button" className="btn danger small" disabled={data.activities.some((activity)=>activity.repairItems?.some((line)=>line.code===item.code))} onClick={()=>remove(item)}>Hapus</button></td></tr>)}</tbody></table></div><form className="reference-form repair-reference-form" onSubmit={add}><input className="input" name="code" required placeholder="Kode"/><input className="input" name="name" required placeholder="Jenis perbaikan"/><input className="input" name="price" type="number" min="1" required placeholder="Harga per titik"/><button className="btn primary">Tambah kode</button></form></section></div>;
 }
 
-function Reports({ data }: { data: DemoState }) {
+function Reports({ data, officials }: { data: DemoState; officials?: Officials }) {
   const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState(""), [sort, setSort] = useState("newest"), [filterOpen, setFilterOpen] = useState(false);
   const resetFilters = () => { setFrom(""); setTo(""); setRegion(""); setRepair(""); setPayment(""); setSort("newest"); };
    const filteredBase = data.activities.filter((activity) => { const day = activity.targetDate?.slice(0, 10) || activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
@@ -1366,9 +1391,9 @@ function Reports({ data }: { data: DemoState }) {
           <tfoot><tr><td colSpan={7}>Jumlah</td><td>{rupiah(filtered.reduce((total,activity)=>total+(activity.repairItems??[]).reduce((sum,item)=>sum+item.pricePerPoint*item.points,0),0))}</td><td>{filtered.length} opname</td></tr></tfoot>
         </table>
         <footer className="print-signatures">
-          <div><span>Mengetahui,</span><b>Kepala Bagian</b><i>........................................</i></div>
-          <div><span>Diperiksa oleh,</span><b>Kasubag</b><i>........................................</i></div>
-          <div><span>Disiapkan oleh,</span><b>Administrator</b><i>........................................</i></div>
+          <div><span>Mengetahui,</span><b>Kepala Bagian</b><i>{officials?.kepalaBagian || "........................................"}</i></div>
+          <div><span>Diperiksa oleh,</span><b>Kasubag</b><i>{officials?.kasubag || "........................................"}</i></div>
+          <div><span>Disiapkan oleh,</span><b>Administrator</b><i>{officials?.admin || "........................................"}</i></div>
         </footer>
       </section>
     </div>
