@@ -45,9 +45,12 @@ const dateTime = (v: string) =>
     timeStyle: "short",
     timeZone: "Asia/Makassar",
   }).format(new Date(v));
-const now = "2026-08-14";
-const late = (a: Activity) =>
-  a.status !== "Selesai" && a.status !== "Dibatalkan" && a.targetDate < now;
+const reportFileName = () => {
+  const parts = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit", hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: false }).formatToParts(new Date());
+  const value = (type: Intl.DateTimeFormatPartTypes) => parts.find((part) => part.type === type)?.value ?? "00";
+  return `laporan-opname-${value("year")}${value("month")}${value("day")}-${value("hour")}${value("minute")}${value("second")}`;
+};
+const now = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
 export default function App() {
   const [ready, setReady] = useState(false),
     [login, setLogin] = useState(false),
@@ -200,19 +203,6 @@ export default function App() {
       </aside>
       {menuOpen && <button className="nav-overlay" aria-label="Tutup menu" onClick={() => setMenuOpen(false)} />}
       <main className="content">
-        <header className="topbar">
-          <div className="topbar-start">
-            <button className="hamburger" aria-label="Buka menu navigasi" aria-expanded={menuOpen} onClick={() => setMenuOpen(!menuOpen)}>
-              <span/><span/><span/>
-            </button>
-            <span className="mono">OPERASIONAL / WITA</span>
-          </div>
-          <span>
-            {role === "admin"
-              ? "Administrator"
-              : `${team?.picName} · ${team?.name}`}
-          </span>
-        </header>
         {view === "dashboard" && (
           <Dashboard data={visibleData} go={go} open={open} role={role} />
         )}{" "}
@@ -338,74 +328,61 @@ function Dashboard({
   open: (id: string) => void;
   role: "admin" | "petugas";
 }) {
-  const active = data.activities.filter(
-      (x) => !["Selesai", "Dibatalkan"].includes(x.status),
-    ),
-    pending = data.activities
-      .flatMap((x) => x.expenses)
-      .filter((x) => x.status === "Menunggu");
+  const today = new Intl.DateTimeFormat("en-CA", { timeZone: "Asia/Makassar", year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date());
+  const month = today.slice(0, 7);
+  const paid = data.activities.filter((activity) => activity.paymentStatus === "Sudah dibayar");
+  const unpaid = data.activities.filter((activity) => (activity.paymentStatus ?? "Belum dibayar") === "Belum dibayar");
+  const valueOf = (activity: Activity) => (activity.repairItems ?? []).reduce((sum, item) => sum + item.pricePerPoint * item.points, 0);
+  const totalValue = data.activities.reduce((sum, activity) => sum + valueOf(activity), 0);
+  const paidValue = paid.reduce((sum, activity) => sum + valueOf(activity), 0);
+  const latest = [...data.activities].sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 5);
   return (
     <div className="page">
       <Head
         over="Hari ini"
-        title={role === "admin" ? "Kendali aktivitas" : "Tugas saya"}
+        title={role === "admin" ? "Ringkasan opname" : "Opname saya"}
         desc={
           role === "admin"
-            ? "Ringkasan pekerjaan operasional PDAM."
-            : "Aktivitas yang ditugaskan kepada tim Anda."
+            ? "Ikhtisar opname dan pembayaran pekerjaan PDAM."
+            : "Ikhtisar opname operasional."
         }
       />
       <div className="metrics">
-        <Metric l="Aktivitas aktif" v={active.length} s="sedang dipantau" />
+        <Metric l="Total opname" v={data.activities.length} s="seluruh data tercatat" />
         <Metric
-          l="Tertunda"
-          v={
-            data.activities.filter((x) => x.status === "Tertunda")
-              .length
-          }
-          s="menunggu dilanjutkan"
+          l="Bulan berjalan"
+          v={data.activities.filter((activity) => (activity.targetDate || activity.createdAt).slice(0, 7) === month).length}
+          s="opname bulan ini"
         />
         <Metric
-          l="Terlambat"
-          v={data.activities.filter(late).length}
-           s="melewati tanggal"
-          warn
+          l="Sudah dibayar"
+          v={paid.length}
+          s="opname telah dibayar"
         />
         <Metric
-          l="Biaya menunggu"
-          v={rupiah(pending.reduce((s, x) => s + x.amount, 0))}
-          s={`${pending.length} pengajuan`}
+          l="Belum dibayar"
+          v={unpaid.length}
+          s="opname menunggu pembayaran"
+          warn={unpaid.length > 0}
         />
       </div>
       <div className="dashboard-grid">
         <section className="panel">
           <div className="panel-head">
-            <h2>Aktivitas terbaru</h2>
+            <h2>Opname terbaru</h2>
             <button className="link" onClick={() => go("activities")}>
               Lihat semua
             </button>
           </div>
-          <ActivityTable rows={data.activities.slice(0, 5)} open={open} />
+          <ActivityTable rows={latest} open={open} />
         </section>
         <aside className="panel attention">
           <div className="panel-head">
-            <h2>Perlu perhatian</h2>
+            <h2>Ringkasan nilai</h2>
           </div>
-          {data.activities
-            .filter((x) => x.status === "Tertunda" || late(x))
-            .map((x) => (
-              <button
-                className="attention-row"
-                key={x.id}
-                onClick={() => open(x.id)}
-              >
-                <div>
-                  <b>{x.name}</b>
-                  <small>{x.address}</small>
-                </div>
-                <strong>{late(x) ? "Terlambat" : "Tertunda"}</strong>
-              </button>
-            ))}
+          <div className="summary-value-row"><span>Total nilai opname</span><strong>{rupiah(totalValue)}</strong></div>
+          <div className="summary-value-row"><span>Sudah dibayar</span><strong>{rupiah(paidValue)}</strong></div>
+          <div className="summary-value-row outstanding"><span>Belum dibayar</span><strong>{rupiah(totalValue - paidValue)}</strong></div>
         </aside>
       </div>
     </div>
@@ -538,8 +515,7 @@ function ActivityTable({
                 <small className="block">{x.address}</small>
               </td>
               <td>
-                {date(x.targetDate)}{" "}
-                {late(x) && <b className="late">Terlambat</b>}
+                {date(x.targetDate)}
               </td>
               {report && <><td>{x.toolsUsed?.join(", ") || "—"}</td><td className="mono">{rupiah(x.repairItems?.[0]?.pricePerPoint ?? 0)}</td><td className="mono">{x.repairItems?.[0]?.points ?? 0}</td><td className="mono"><b>{rupiah((x.repairItems ?? []).reduce((sum, item) => sum + item.pricePerPoint * item.points, 0))}</b></td><td><span className={`payment-badge ${(x.paymentStatus ?? "Belum dibayar").toLowerCase().replaceAll(" ", "-")}`}>{x.paymentStatus ?? "Belum dibayar"}</span></td></>}
               {!report && (onEdit || onDelete) && <td className="table-actions" onClick={(event) => event.stopPropagation()}>{onEdit && <button type="button" className="btn small" onClick={() => onEdit(x)}>Edit</button>}{onDelete && <button type="button" className="btn danger small" onClick={() => onDelete(x)}>Hapus</button>}</td>}
@@ -766,8 +742,7 @@ function Detail({
               <div>
                 <dt>Tanggal</dt>
                 <dd>
-                  {date(a.targetDate)}{" "}
-                  {late(a) && <b className="late">Terlambat</b>}
+                  {date(a.targetDate)}
                 </dd>
               </div>
               <div>
@@ -1216,7 +1191,8 @@ function HamletMasterV2({ data, setData, flash }: { data: DemoState; setData: Re
   const [selectedRegion,setSelectedRegion]=useState(data.regions[0]?.code??""),[modal,setModal]=useState(false),[current,setCurrent]=useState(""),[error,setError]=useState("");const region=data.regions.find(x=>x.code===selectedRegion),hamlets=region?.hamlets??[];
   useEffect(()=>{if(!modal)return;const head=document.querySelector(".hamlet-master-panel .master-modal-head");if(!head||head.querySelector(".hamlet-modal-area"))return;const info=document.createElement("div");info.className="hamlet-modal-area";info.textContent=`Area: ${selectedRegion} · ${region?.name??"Belum dipilih"}`;head.insertAdjacentElement("afterend",info);return()=>info.remove()},[modal,selectedRegion,region?.name]);
    const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const name=String(new FormData(e.currentTarget).get("hamletName")||"").trim();if(!name||!region)return;if(hamlets.some(x=>x.toLowerCase()===name.toLowerCase()&&x!==current))return setError("Dusun sudah tersedia.");setData(s=>({...s,regions:s.regions.map(r=>r.code===selectedRegion?{...r,hamlets:current?(r.hamlets??[]).map(x=>x===current?name:x):[...(r.hamlets??[]),name]}:r),activities:current?s.activities.map(a=>a.regionCode===selectedRegion&&a.hamlet===current?{...a,hamlet:name}:a):s.activities}));setModal(false);setError("");flash(current?"Dusun diperbarui":"Dusun ditambahkan")};
-  return <section className="panel hamlet-master-panel"><div className="panel-head"><h2>Dusun berdasarkan area</h2><span>{hamlets.length} dusun</span><button className="btn primary" type="button" onClick={()=>{setCurrent("");setError("");setModal(true)}}>Tambah dusun</button></div><div className="master-region-filter"><label>Area<AppSelect value={selectedRegion} onValueChange={setSelectedRegion} options={data.regions.map(r=>({value:r.code,label:`${r.code} · ${r.name}`}))}/></label></div><div className="table-wrap"><table><thead><tr><th>Nama dusun</th><th>Status penggunaan</th><th>Aksi</th></tr></thead><tbody>{hamlets.map(x=><tr key={x}><td><b>{x}</b></td><td>Belum digunakan</td><td className="master-actions"><button className="btn small" type="button" onClick={()=>{setCurrent(x);setError("");setModal(true)}}>Edit</button></td></tr>)}</tbody></table></div>{modal&&<div className="master-modal-backdrop" onMouseDown={()=>setModal(false)}><div className="master-modal" onMouseDown={e=>e.stopPropagation()}><div className="master-modal-head"><h2>{current?"Edit dusun":"Tambah dusun"}</h2><button type="button" onClick={()=>setModal(false)}>×</button></div><form onSubmit={save}><label>Nama dusun<input className="input" name="hamletName" defaultValue={current} required placeholder="Contoh: Dusun Taman"/></label>{error&&<small className="error">{error}</small>}<div className="form-actions"><button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button><button className="btn primary">Simpan</button></div></form></div></div>}</section>;
+   const remove=(name:string)=>{const used=data.activities.some(a=>a.regionCode===selectedRegion&&a.hamlet?.toLowerCase()===name.toLowerCase());if(used)return setError("Dusun sudah digunakan oleh opname dan tidak dapat dihapus.");if(!window.confirm(`Hapus dusun ${name} dari area ${region?.name??selectedRegion}?`))return;setData(s=>({...s,regions:s.regions.map(r=>r.code===selectedRegion?{...r,hamlets:(r.hamlets??[]).filter(x=>x!==name)}:r)}));setError("");flash("Dusun dihapus")};
+  return <section className="panel hamlet-master-panel"><div className="panel-head"><h2>Dusun berdasarkan area</h2><span>{hamlets.length} dusun</span><button className="btn primary" type="button" onClick={()=>{setCurrent("");setError("");setModal(true)}}>Tambah dusun</button></div>{error&&<div className="login-error master-error">{error}</div>}<div className="master-region-filter"><label>Area<AppSelect value={selectedRegion} onValueChange={(value)=>{setSelectedRegion(value);setError("")}} options={data.regions.map(r=>({value:r.code,label:`${r.code} · ${r.name}`}))}/></label></div><div className="table-wrap"><table><thead><tr><th>Nama dusun</th><th>Status penggunaan</th><th>Aksi</th></tr></thead><tbody>{hamlets.map(x=>{const used=data.activities.filter(a=>a.regionCode===selectedRegion&&a.hamlet?.toLowerCase()===x.toLowerCase()).length;return <tr key={x}><td><b>{x}</b></td><td>{used?`Digunakan di ${used} opname`:"Belum digunakan"}</td><td className="master-actions"><button className="btn small" type="button" onClick={()=>{setCurrent(x);setError("");setModal(true)}}>Edit</button><button className="btn danger small" type="button" disabled={used>0} onClick={()=>remove(x)}>Hapus</button></td></tr>})}</tbody></table></div>{modal&&<div className="master-modal-backdrop" onMouseDown={()=>setModal(false)}><div className="master-modal" onMouseDown={e=>e.stopPropagation()}><div className="master-modal-head"><h2>{current?"Edit dusun":"Tambah dusun"}</h2><button type="button" onClick={()=>setModal(false)}>×</button></div><form onSubmit={save}><label>Nama dusun<input className="input" name="hamletName" defaultValue={current} required placeholder="Contoh: Dusun Taman"/></label>{error&&<small className="error">{error}</small>}<div className="form-actions"><button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button><button className="btn primary">Simpan</button></div></form></div></div>}</section>;
 }
 
 function HamletMaster({ data, setData, flash }: { data: DemoState; setData: React.Dispatch<React.SetStateAction<DemoState>>; flash: (message: string) => void }) {
@@ -1313,7 +1289,7 @@ function Reports({ data }: { data: DemoState }) {
         desc="Ringkasan status dan realisasi pengeluaran."
         action={
           <div className="report-actions">
-          <button type="button" className="btn" onClick={() => window.print()}>Cetak laporan</button>
+          <button type="button" className="btn" onClick={() => { const previousTitle = document.title; document.title = reportFileName(); window.print(); document.title = previousTitle; }}>Cetak laporan</button>
           <button
             className="btn primary"
             onClick={() => {
@@ -1346,7 +1322,7 @@ function Reports({ data }: { data: DemoState }) {
               const u = URL.createObjectURL(b),
                 a = document.createElement("a");
               a.href = u;
-              a.download = "aktivitas-pdam-demo.csv";
+              a.download = `${reportFileName()}.csv`;
               a.click();
               URL.revokeObjectURL(u);
             }}
@@ -1383,9 +1359,9 @@ function Reports({ data }: { data: DemoState }) {
       </section>
       <section className="print-report" aria-hidden="true">
         <header className="print-report-head">
-          <div className="print-brand"><img src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana"/><div><b>PDAM Tirta Amertha Buana</b><span>Laporan opname pekerjaan</span></div></div>
+          <div className="print-brand"><img src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana"/><div><b>PERUSAHAAN UMUM DAERAH AIR MINUM</b><strong>TIRTA AMERTHA BUANA</strong></div></div>
           <div className="print-title"><h1>Laporan Opname</h1><p>Rekap pekerjaan dan pembayaran</p></div>
-          <small>Dicetak: {dateTime(new Date().toISOString())}</small>
+          <span aria-hidden="true" />
         </header>
         <table className="print-table">
           <thead><tr><th>No.</th><th>Tanggal</th><th>Uraian pekerjaan</th><th>Lokasi</th><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></tr></thead>
@@ -1395,7 +1371,7 @@ function Reports({ data }: { data: DemoState }) {
         <footer className="print-signatures">
           <div><span>Mengetahui,</span><b>Kepala Bagian</b><i>........................................</i></div>
           <div><span>Diperiksa oleh,</span><b>Kasubag</b><i>........................................</i></div>
-          <div><span>{date(new Date().toISOString())}</span><b>Administrator</b><i>........................................</i></div>
+          <div><span>Disiapkan oleh,</span><b>Administrator</b><i>........................................</i></div>
         </footer>
       </section>
     </div>
