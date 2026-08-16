@@ -106,3 +106,4 @@ body {
 }
 
 @media(max-width:1200px){.report-filter-layout.is-open{margin:0}.report-filter-modal-actions{border-radius:0}}
+@media print{.print-table{margin-top:8px}}

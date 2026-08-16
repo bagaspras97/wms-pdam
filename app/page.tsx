@@ -1387,12 +1387,6 @@ function Reports({ data }: { data: DemoState }) {
           <div className="print-title"><h1>Laporan Opname</h1><p>Rekap pekerjaan dan pembayaran</p></div>
           <small>Dicetak: {dateTime(new Date().toISOString())}</small>
         </header>
-        <div className="print-meta">
-          <div><span>Periode</span><b>{from ? date(from) : "Awal data"} — {to ? date(to) : "Akhir data"}</b></div>
-          <div><span>Area</span><b>{region ? data.regions.find((item) => item.code === region)?.name ?? region : "Semua area"}</b></div>
-          <div><span>Kode perbaikan</span><b>{repair ? data.repairCodes.find((item) => item.code === repair)?.name ?? repair : "Semua kode"}</b></div>
-          <div><span>Pembayaran</span><b>{payment || "Semua kondisi"}</b></div>
-        </div>
         <table className="print-table">
           <thead><tr><th>No.</th><th>Tanggal</th><th>Uraian pekerjaan</th><th>Lokasi</th><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></tr></thead>
           <tbody>{filtered.map((activity,index)=><tr key={activity.id}><td>{index+1}</td><td>{date(activity.targetDate)}</td><td>{activity.name}</td><td>{activity.address}</td><td>{activity.toolsUsed?.join(", ")||"—"}</td><td>{rupiah(activity.repairItems?.[0]?.pricePerPoint??0)}</td><td>{activity.repairItems?.[0]?.points??0}</td><td>{rupiah((activity.repairItems??[]).reduce((sum,item)=>sum+item.pricePerPoint*item.points,0))}</td><td>{activity.paymentStatus??"Belum dibayar"}</td></tr>)}</tbody>
