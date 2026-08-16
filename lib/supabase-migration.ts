@@ -26,9 +26,8 @@ export async function migrateStateToTables(state: DemoState) {
     throw new Error(`[${stage}] ${error.message ?? "Supabase request failed"}${error.code ? ` (${error.code})` : ""}${error.details ? ` · ${error.details}` : ""}${error.hint ? ` · ${error.hint}` : ""}`);
   };
   if (state.officials) {
-    // Tabel ini ditambahkan sebagai migrasi opsional agar versi database lama
-    // tetap dapat menjalankan modul utama sebelum SQL terbaru diterapkan.
-    await supabase.from("officials").upsert({ id: 1, kasubag_name: state.officials.kasubag, kepala_bagian_name: state.officials.kepalaBagian, admin_name: state.officials.admin, updated_at: new Date().toISOString() });
+    const officialsResult = await supabase.from("officials").upsert({ id: 1, kasubag_name: state.officials.kasubag, kepala_bagian_name: state.officials.kepalaBagian, admin_name: state.officials.admin, updated_at: new Date().toISOString() });
+    assertOk("officials.upsert", officialsResult.error);
   }
   const regions = state.regions.map((item) => ({ code: item.code, name: item.name, active: true }));
   const repairs = state.repairCodes.map((item) => ({ code: item.code, name: item.name, price_per_point: item.pricePerPoint, active: true }));

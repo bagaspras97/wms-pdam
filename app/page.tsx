@@ -64,6 +64,7 @@ export default function App() {
     [menuOpen, setMenuOpen] = useState(false),
     [inputDataOpen, setInputDataOpen] = useState(true),
     [toast, setToast] = useState(""),
+    [syncing, setSyncing] = useState(false),
     [remoteReady, setRemoteReady] = useState(!supabase);
   useEffect(() => {
     const syncRoute = () => { const next = viewForPath(window.location.pathname); setView(next.view); setSelected(next.id); };
@@ -110,7 +111,12 @@ export default function App() {
     localStorage.setItem("monitor-pdam-demo", JSON.stringify(data));
   }, [data, ready]);
   useEffect(() => {
-    if (ready && remoteReady && supabase) void migrateStateToTables(data).catch((error: unknown) => console.error("Supabase table migration failed:", error instanceof Error ? error.message : String(error)));
+    if (ready && remoteReady && supabase) {
+      setSyncing(true);
+      void migrateStateToTables(data)
+        .catch((error: unknown) => console.error("Supabase table migration failed:", error instanceof Error ? error.message : String(error)))
+        .finally(() => setSyncing(false));
+    }
   }, [data, ready, remoteReady]);
   const flash = (x: string) => {
       setToast(x);
@@ -155,8 +161,8 @@ export default function App() {
         <div className="brand">
           <img className="brand-logo" src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana" />
           <div>
-            <strong>Monitor PDAM</strong>
-            <small>Aktivitas lapangan</small>
+            <strong>Opname PDAM</strong>
+            <small>Pencatatan pekerjaan</small>
           </div>
         </div>
         <nav className="nav">
@@ -176,7 +182,7 @@ export default function App() {
               ))}
           {role === "admin" && <div className="nav-group">
             <button type="button" className="nav-group-trigger" onClick={() => setInputDataOpen(!inputDataOpen)} aria-expanded={inputDataOpen}>
-              <b className="mono">04</b><span>Input data</span><i aria-hidden="true">{inputDataOpen ? "−" : "+"}</i>
+              <b className="mono">04</b><span>Master data</span><i aria-hidden="true">{inputDataOpen ? "−" : "+"}</i>
             </button>
             {inputDataOpen && <div className="nav-submenu">
               <button className={view === "tools" ? "active" : ""} onClick={() => { go("tools"); setMenuOpen(false); }}>Daftar alat</button>
@@ -190,12 +196,12 @@ export default function App() {
         <div className="sidebar-foot">
           <div>
             <strong>
-              {role === "admin" ? "Admin Operasional" : team?.picName}
+              {role === "admin" ? "Administrator Opname" : team?.picName}
             </strong>
             <br />
             <small>
               {role === "admin"
-                ? "Kontrol & persetujuan"
+                ? "Data opname & laporan"
                 : `PIC · ${team?.name}`}
             </small>
           </div>
@@ -217,12 +223,15 @@ export default function App() {
         {view === "activities" && (
           <Activities data={visibleData} open={open} go={go} role={role} regions={data.regions} repairCodes={data.repairCodes} masterTools={data.tools} save={(a) => { saveActivity(a); flash(`${a.id} berhasil dibuat`); }} update={(a) => { update(a); flash("Opname diperbarui"); }} remove={async (id) => {
             try {
+              setSyncing(true);
               await deleteActivityFromTables(id);
               setData((state) => ({ ...state, activities: state.activities.filter((activity) => activity.id !== id) }));
               flash("Opname dihapus dari database");
             } catch (error) {
               console.error("Supabase activity deletion failed:", error);
               window.alert(`Opname gagal dihapus dari database. ${error instanceof Error ? error.message : String(error)}`);
+            } finally {
+              setSyncing(false);
             }
           }} />
         )}{" "}
@@ -243,7 +252,8 @@ export default function App() {
           <Detail
             activity={current}
             role={role}
-            actorName={role === "admin" ? "Admin Operasional" : team?.picName ?? "PIC"}
+            actorName={role === "admin" ? "Administrator Opname" : team?.picName ?? "PIC"}
+            syncing={syncing}
             update={(a) => {
               update(a);
               flash("Aktivitas diperbarui");
@@ -261,6 +271,7 @@ export default function App() {
          {view === "officials" && role === "admin" && <OfficialsMaster officials={data.officials ?? { kasubag: "", kepalaBagian: "", admin: "" }} setOfficials={(officials) => setData((state) => ({ ...state, officials }))} flash={flash} />}
       </main>
       {toast && <div className="toast">{toast}</div>}
+      {syncing && <div className="sync-loading" role="status" aria-live="polite"><span className="loading-spinner" aria-hidden="true" />Menyimpan perubahan…</div>}
     </div>
   );
 }
@@ -557,7 +568,7 @@ function OfficialsMaster({ officials, setOfficials, flash }: { officials: Offici
   const [kasubag, setKasubag] = useState(officials.kasubag ?? "");
   const [kepalaBagian, setKepalaBagian] = useState(officials.kepalaBagian ?? "");
   const [admin, setAdmin] = useState(officials.admin ?? "");
-  return <div className="page"><Head over="Input data" title="Penandatangan laporan" desc="Atur nama pejabat yang ditampilkan pada cetak laporan opname."/><section className="panel officials-panel"><div className="panel-head"><h2>Penandatangan laporan</h2><span>Pengaturan aktif</span></div><form onSubmit={(event) => { event.preventDefault(); setOfficials({ kasubag: kasubag.trim(), kepalaBagian: kepalaBagian.trim(), admin: admin.trim() }); flash("Nama pejabat diperbarui"); }}><label>Nama Kasubag<input className="input" value={kasubag} onChange={(event) => setKasubag(event.target.value)} placeholder="Contoh: I Made Sujana" /></label><label>Nama Kepala Bagian<input className="input" value={kepalaBagian} onChange={(event) => setKepalaBagian(event.target.value)} placeholder="Contoh: Ni Made Aryani" /></label><label>Nama Administrator<input className="input" value={admin} onChange={(event) => setAdmin(event.target.value)} placeholder="Contoh: I Made Adnyana" /></label><div className="form-actions"><button className="btn primary">Simpan penugasan</button></div></form></section></div>;
+  return <div className="page"><Head over="Master data" title="Penandatangan laporan" desc="Atur nama yang ditampilkan pada cetak laporan opname."/><section className="panel officials-panel"><div className="panel-head"><h2>Penandatangan laporan</h2><span>Pengaturan aktif</span></div><form onSubmit={(event) => { event.preventDefault(); setOfficials({ kasubag: kasubag.trim(), kepalaBagian: kepalaBagian.trim(), admin: admin.trim() }); flash("Nama berhasil diperbarui"); }}><label>Nama Kasubag<input className="input" value={kasubag} onChange={(event) => setKasubag(event.target.value)} placeholder="Contoh: I Made Sujana" /></label><label>Nama Kepala Bagian<input className="input" value={kepalaBagian} onChange={(event) => setKepalaBagian(event.target.value)} placeholder="Contoh: Ni Made Aryani" /></label><label>Nama Administrator<input className="input" value={admin} onChange={(event) => setAdmin(event.target.value)} placeholder="Contoh: I Made Adnyana" /></label><div className="form-actions"><button className="btn primary">Simpan penugasan</button></div></form></section></div>;
 }
 
 function AppSelect({ name, value, defaultValue = "", options, placeholder = "Pilih data", allowCustom = false, className = "", onValueChange }: { name?: string; value?: string; defaultValue?: string; options: { value: string; label: string }[]; placeholder?: string; allowCustom?: boolean; className?: string; onValueChange?: (value: string) => void }) {
@@ -625,7 +636,7 @@ function NewActivity({
       paymentStatus: initial?.paymentStatus ?? "Belum dibayar",
       createdAt: initial?.createdAt ?? created,
       targetDate: String(f.get("target")),
-      note: String(f.get("note") || ""),
+      note: initial?.note ?? "",
       files: [],
       expenses: selected ? [{ id: initial?.expenses?.[0]?.id ?? crypto.randomUUID(), category: "Tarif perbaikan", amount: automaticTotal, note: `${selected.code} · ${selected.name} · ${pointCount} titik × ${rupiah(selected.pricePerPoint)}`, status: "Disetujui" }] : [],
       history: initial?.history ?? [{ status: "Direncanakan", at: created, note: "Aktivitas dibuat admin" }],
@@ -679,10 +690,9 @@ function NewActivity({
               required
             />
           </label>
-          {initial && <label className="span-2">Catatan<textarea className="input" name="note" rows={3} defaultValue={initial.note} /></label>}
         </div>
         <div className="form-actions">
-          <button className="btn primary">Buat</button>
+          <button className="btn primary">{initial ? "Ubah" : "Buat"}</button>
         </div>
       </form>
     </div>
@@ -692,23 +702,50 @@ function Detail({
   activity: a,
   role,
   actorName,
+  syncing,
   update,
   back,
 }: {
   activity: Activity;
   role: string;
   actorName: string;
+  syncing: boolean;
   update: (a: Activity) => void;
   back: () => void;
 }) {
   const [expense, setExpense] = useState(false);
+  const [paymentModal, setPaymentModal] = useState(false);
+  const [paymentNote, setPaymentNote] = useState("");
+  const [paymentSaving, setPaymentSaving] = useState(false);
+  const [paymentSyncStarted, setPaymentSyncStarted] = useState(false);
   const approvedTotal = a.expenses
     .filter((item) => item.status === "Disetujui")
     .reduce((sum, item) => sum + item.amount, 0);
+  useEffect(() => {
+    if (!paymentSaving) return;
+    if (syncing) setPaymentSyncStarted(true);
+    if (paymentSyncStarted && !syncing) {
+      setPaymentSaving(false);
+      setPaymentModal(false);
+      setPaymentSyncStarted(false);
+      setPaymentNote("");
+    }
+  }, [paymentSaving, paymentSyncStarted, syncing]);
   const markPayment = () => {
     if (a.paymentStatus === "Sudah dibayar") return;
-    const note = window.prompt("Keterangan pembayaran (opsional):", "") ?? "";
-    update({ ...a, paymentStatus: "Sudah dibayar", paidAt: new Date().toISOString(), paymentNote: note.trim() });
+    setPaymentNote("");
+    setPaymentModal(true);
+  };
+  const confirmPayment = () => {
+    if (paymentSaving) return;
+    setPaymentSaving(true);
+    setPaymentSyncStarted(false);
+    update({ ...a, paymentStatus: "Sudah dibayar", paidAt: new Date().toISOString(), paymentNote: paymentNote.trim() });
+    if (!supabase) window.setTimeout(() => {
+      setPaymentSaving(false);
+      setPaymentModal(false);
+      setPaymentNote("");
+    }, 450);
   };
   const change = (status: Status) => {
     let pausedReason = a.pausedReason;
@@ -772,8 +809,7 @@ function Detail({
                 <dd>{a.toolsUsed?.length ? a.toolsUsed.join(", ") : "Belum diisi"}</dd>
               </div>
             </dl>
-            <p className="note">{a.note || "Tidak ada catatan."}</p>
-            {!!a.repairItems?.length && <div className="repair-breakdown"><div className="panel-head bare"><h2>Perhitungan tarif perbaikan</h2><span>Otomatis disetujui</span></div>{a.repairItems.map(item=><div key={item.code}><b><span className="code-box mono">{item.code}</span>{item.name}</b><span>{item.points} titik × {rupiah(item.pricePerPoint)}</span><strong>{rupiah(item.total)}</strong></div>)}<footer><span>Total tarif</span><b>{rupiah(a.repairItems.reduce((sum,item)=>sum+item.total,0))}</b></footer></div>}
+            {!!a.repairItems?.length && <div className="repair-breakdown"><div className="panel-head bare"><h2>Perhitungan tarif perbaikan</h2></div>{a.repairItems.map(item=><div key={item.code}><b><span className="code-box mono">{item.code}</span>{item.name}</b><span>{item.points} titik × {rupiah(item.pricePerPoint)}</span><strong>{rupiah(item.total)}</strong></div>)}<footer><span>Total tarif</span><b>{rupiah(a.repairItems.reduce((sum,item)=>sum+item.total,0))}</b></footer></div>}
           </div>
         </section>
         <aside className="side-stack">
@@ -818,27 +854,9 @@ function Detail({
               {a.paymentStatus === "Sudah dibayar" ? <small>Dibayar {a.paidAt ? dateTime(a.paidAt) : ""} WITA{a.paymentNote ? ` · ${a.paymentNote}` : ""}</small> : <button className="btn primary payment-action" onClick={markPayment}>Tandai sudah dibayar</button>}
             </div>
           </section>
-          <section className="panel section">
-            <h2>Dokumentasi</h2>
-            <div className="files">
-              {a.files.map((x) => (
-                <span key={x}>{x}</span>
-              ))}
-              <label className="upload">
-                Pilih foto
-                <input
-                  type="file"
-                  hidden
-                  onChange={(e) => {
-                    const name = e.target.files?.[0]?.name;
-                    if (name) update({ ...a, files: [...a.files, name] });
-                  }}
-                />
-              </label>
-            </div>
-          </section>
         </aside>
       </div>
+      {paymentModal && <div className="master-modal-backdrop payment-confirm-backdrop" onMouseDown={() => { if (!paymentSaving) setPaymentModal(false); }}><div className="master-modal payment-confirm-modal" role="dialog" aria-modal="true" aria-labelledby="payment-confirm-title" onMouseDown={(event) => event.stopPropagation()}><div className="master-modal-head"><div><small>Konfirmasi pembayaran</small><h2 id="payment-confirm-title">Tandai tarif sudah dibayar?</h2></div><button type="button" aria-label="Tutup" disabled={paymentSaving} onClick={() => setPaymentModal(false)}>×</button></div><div className="payment-confirm-summary"><span>Total pembayaran</span><strong>{rupiah(approvedTotal)}</strong><small>Setelah dikonfirmasi, kondisi pembayaran opname berubah menjadi sudah dibayar.</small></div><label>Keterangan pembayaran <span>(opsional)</span><input className="input" value={paymentNote} disabled={paymentSaving} onChange={(event) => setPaymentNote(event.target.value)} placeholder="Contoh: Dibayar melalui kas operasional" autoFocus /></label><div className="form-actions"><button type="button" className="btn" disabled={paymentSaving} onClick={() => setPaymentModal(false)}>Batal</button><button type="button" className="btn primary" disabled={paymentSaving} onClick={confirmPayment}>{paymentSaving && <span className="loading-spinner button-spinner" aria-hidden="true" />}{paymentSaving ? "Menyimpan..." : "Konfirmasi pembayaran"}</button></div></div></div>}
     </div>
   );
 }
@@ -1367,7 +1385,7 @@ function Reports({ data, officials }: { data: DemoState; officials?: Officials }
              </div>
            </section>
            <section className="report-filter-group data-filter-group">
-             <div className="report-filter-heading"><span>02</span><div><b>Filter & urutan</b><small>Saring hasil dan tentukan urutan tabel.</small></div></div>
+             <div className="report-filter-heading"><span>02</span><div><b>Filter & urutan</b><small>Saring hasil dan tentukan urutan tabel.</small></div><button type="button" className="report-filter-reset" onClick={resetFilters}>Reset filter</button></div>
              <div className="report-filter-fields data-fields">
                <label>Area<AppSelect value={region} onValueChange={setRegion} options={[{value:"",label:"Semua area"},...data.regions.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label>
                <label>Kode perbaikan<AppSelect value={repair} onValueChange={setRepair} options={[{value:"",label:"Semua kode"},...data.repairCodes.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label>
@@ -1375,7 +1393,6 @@ function Reports({ data, officials }: { data: DemoState; officials?: Officials }
                <label>Urutkan<AppSelect value={sort} onValueChange={setSort} options={[{value:"newest",label:"Terbaru"},{value:"oldest",label:"Terlama"},{value:"name",label:"Nama pekerjaan"}]}/></label>
              </div>
            </section>
-            <div className="report-filter-modal-actions"><button type="button" className="btn" onClick={resetFilters}>Reset filter</button><button type="button" className="btn primary" onClick={()=>setFilterOpen(false)}>Tampilkan hasil</button></div>
          </div>
          <ActivityTable rows={filtered} open={() => {}} report />
       </section>

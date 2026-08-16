@@ -8,6 +8,18 @@
   grid-template-columns: 1fr;
 }
 
+.page:has(.tool-master-panel),
+.page:has(.repair-master-panel) {
+  max-width: none;
+  width: 100%;
+}
+
+body:has(.tool-master-panel) .page,
+body:has(.repair-master-panel) .page {
+  max-width: none;
+  width: 100%;
+}
+
 .reference-followup {
   margin-top: 22px;
 }
@@ -40,12 +52,14 @@
 }
 
 .hamlet-master-panel,
-.repair-master-panel {
+.repair-master-panel,
+.tool-master-panel {
   width: 100%;
+  max-width: none;
 }
 
 .repair-master-panel {
-  max-width: 1050px;
+  max-width: none;
 }
 
 .master-region-filter {
@@ -78,8 +92,8 @@
   height: 29px;
   padding: 0 8px;
   border-radius: 8px;
-  background: #e9f2ed;
-  color: var(--accent);
+  background: #eaf4fb;
+  color: #185f91;
 }
 
 .master-error {

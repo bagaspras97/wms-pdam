@@ -59,6 +59,7 @@ body {
 .report-filter-layout{display:grid;grid-template-columns:minmax(280px,.8fr) minmax(0,1.7fr);margin:18px;border:1px solid var(--line);border-radius:14px;background:#fff;box-shadow:0 8px 24px rgba(18,76,112,.06)}
 .report-filter-group{min-width:0;padding:22px 24px 26px}.date-filter-group{border-right:1px solid var(--line);border-radius:14px 0 0 0;background:#f8fbfd}
 .report-filter-heading{display:flex;align-items:flex-start;gap:12px;margin-bottom:20px}.report-filter-heading>span{display:grid;place-items:center;width:32px;height:32px;border-radius:9px;background:var(--accent-soft);color:var(--accent);font:700 10px "Geist Mono",Consolas,monospace}.report-filter-heading b,.report-filter-heading small{display:block}.report-filter-heading b{font-size:14px;letter-spacing:-.01em}.report-filter-heading small{margin-top:3px;color:var(--muted);font-size:10px;font-weight:400}
+.report-filter-reset{align-self:center;margin-left:auto;padding:7px 10px;border:1px solid var(--line);border-radius:8px;background:#f8fbfd;color:var(--accent);font-size:10px;font-weight:700;white-space:nowrap;transition:transform .18s ease,border-color .18s ease}.report-filter-reset:hover{border-color:#9fc2d9;transform:translateY(-1px)}.report-filter-reset:active{transform:translateY(1px)}
 .report-filter-fields{display:grid;gap:14px}.date-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.data-fields{grid-template-columns:repeat(2,minmax(0,1fr))}.report-filter-fields label{display:grid;gap:8px;min-width:0;color:var(--muted);font-size:11px;font-weight:700}.report-filter-fields .input,.report-filter-fields .app-select{min-height:46px}.report-filter-fields .app-select>.input{min-height:46px;padding:0 48px 0 14px}.report-filter-fields .app-select-toggle{width:44px;height:46px}
 .report-filter-fields .input:focus,.report-filter-fields .app-select:focus-within{border-color:var(--accent)}
 .report-filter-mobile-trigger,.report-filter-overlay,.report-filter-modal-head{display:none}.report-filter-modal-actions{display:flex;grid-column:1/-1;align-items:center;justify-content:flex-end;gap:10px;padding:14px 18px;border-top:1px solid var(--line);border-radius:0 0 14px 14px;background:#f8fbfd}
@@ -106,5 +107,6 @@ body {
 }
 
 @media(max-width:1200px){.report-filter-layout.is-open{margin:0}.report-filter-modal-actions{border-radius:0}}
+.report-filter-fields .app-select,.report-filter-fields .app-select>.input{height:46px;min-height:46px}.report-filter-fields .app-select-toggle{top:0;bottom:0;height:46px;border-bottom:0}
 @media print{.print-table{margin-top:8px}}
 @media print{.print-table th,.print-table td{padding:3px 3px;font-size:6.3px;line-height:1.25;overflow-wrap:anywhere}}
