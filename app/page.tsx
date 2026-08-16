@@ -1305,10 +1305,6 @@ function Reports({ data }: { data: DemoState }) {
   const resetFilters = () => { setFrom(""); setTo(""); setRegion(""); setRepair(""); setPayment(""); setSort("newest"); };
    const filteredBase = data.activities.filter((activity) => { const day = activity.targetDate?.slice(0, 10) || activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
   const filtered = [...filteredBase].sort((a, b) => sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.name.localeCompare(b.name) : b.createdAt.localeCompare(a.createdAt));
-  const approved = filtered
-    .flatMap((x) => x.expenses)
-    .filter((x) => x.status === "Disetujui")
-    .reduce((s, x) => s + x.amount, 0);
   return (
     <div className="page">
       <Head
@@ -1316,6 +1312,8 @@ function Reports({ data }: { data: DemoState }) {
         title="Rekap aktivitas"
         desc="Ringkasan status dan realisasi pengeluaran."
         action={
+          <div className="report-actions">
+          <button type="button" className="btn" onClick={() => window.print()}>Cetak laporan</button>
           <button
             className="btn primary"
             onClick={() => {
@@ -1355,30 +1353,9 @@ function Reports({ data }: { data: DemoState }) {
           >
             Ekspor CSV
           </button>
+          </div>
         }
       />
-      <div className="metrics">
-        <Metric
-          l="Total aktivitas"
-          v={filtered.length}
-          s="sesuai filter"
-        />
-        <Metric
-          l="Selesai"
-          v={filtered.filter((x) => x.paymentStatus === "Sudah dibayar").length}
-          s="aktivitas dibayar"
-        />
-        <Metric
-          l="Terlambat"
-          v={filtered.filter((x) => (x.paymentStatus ?? "Belum dibayar") === "Belum dibayar").length}
-          s="aktivitas belum dibayar"
-        />
-        <Metric
-          l="Biaya disetujui"
-          v={rupiah(approved)}
-          s="realisasi tercatat"
-        />
-      </div>
       <section className="panel report-filter-panel">
         <div className="report-filters"><label>Dari tanggal<input className="input" type="date" value={from} onChange={(event)=>setFrom(event.target.value)}/></label><label>Sampai tanggal<input className="input" type="date" value={to} onChange={(event)=>setTo(event.target.value)}/></label><label>Kode wilayah<AppSelect value={region} onValueChange={setRegion} options={[{value:"",label:"Semua wilayah"},...data.regions.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label><label>Kode perbaikan<AppSelect value={repair} onValueChange={setRepair} options={[{value:"",label:"Semua kode"},...data.repairCodes.map((item)=>({value:item.code,label:`${item.code} · ${item.name}`}))]}/></label><label>Kondisi pembayaran<AppSelect value={payment} onValueChange={setPayment} options={[{value:"",label:"Semua kondisi"},{value:"Belum dibayar",label:"Belum dibayar"},{value:"Sudah dibayar",label:"Sudah dibayar"}]}/></label></div>
          <button type="button" className="report-filter-mobile-trigger" onClick={()=>setFilterOpen(true)}>Filter & urutkan</button>
@@ -1403,6 +1380,29 @@ function Reports({ data }: { data: DemoState }) {
             <div className="report-filter-modal-actions"><button type="button" className="btn" onClick={resetFilters}>Reset filter</button><button type="button" className="btn primary" onClick={()=>setFilterOpen(false)}>Tampilkan hasil</button></div>
          </div>
          <ActivityTable rows={filtered} open={() => {}} report />
+      </section>
+      <section className="print-report" aria-hidden="true">
+        <header className="print-report-head">
+          <div className="print-brand"><img src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana"/><div><b>PDAM Tirta Amertha Buana</b><span>Laporan opname pekerjaan</span></div></div>
+          <div className="print-title"><h1>Laporan Opname</h1><p>Rekap pekerjaan dan pembayaran</p></div>
+          <small>Dicetak: {dateTime(new Date().toISOString())}</small>
+        </header>
+        <div className="print-meta">
+          <div><span>Periode</span><b>{from ? date(from) : "Awal data"} — {to ? date(to) : "Akhir data"}</b></div>
+          <div><span>Area</span><b>{region ? data.regions.find((item) => item.code === region)?.name ?? region : "Semua area"}</b></div>
+          <div><span>Kode perbaikan</span><b>{repair ? data.repairCodes.find((item) => item.code === repair)?.name ?? repair : "Semua kode"}</b></div>
+          <div><span>Pembayaran</span><b>{payment || "Semua kondisi"}</b></div>
+        </div>
+        <table className="print-table">
+          <thead><tr><th>No.</th><th>Tanggal</th><th>Uraian pekerjaan</th><th>Lokasi</th><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></tr></thead>
+          <tbody>{filtered.map((activity,index)=><tr key={activity.id}><td>{index+1}</td><td>{date(activity.targetDate)}</td><td>{activity.name}</td><td>{activity.address}</td><td>{activity.toolsUsed?.join(", ")||"—"}</td><td>{rupiah(activity.repairItems?.[0]?.pricePerPoint??0)}</td><td>{activity.repairItems?.[0]?.points??0}</td><td>{rupiah((activity.repairItems??[]).reduce((sum,item)=>sum+item.pricePerPoint*item.points,0))}</td><td>{activity.paymentStatus??"Belum dibayar"}</td></tr>)}</tbody>
+          <tfoot><tr><td colSpan={7}>Jumlah</td><td>{rupiah(filtered.reduce((total,activity)=>total+(activity.repairItems??[]).reduce((sum,item)=>sum+item.pricePerPoint*item.points,0),0))}</td><td>{filtered.length} opname</td></tr></tfoot>
+        </table>
+        <footer className="print-signatures">
+          <div><span>Mengetahui,</span><b>Kepala Bagian</b><i>........................................</i></div>
+          <div><span>Diperiksa oleh,</span><b>Kasubag</b><i>........................................</i></div>
+          <div><span>{date(new Date().toISOString())}</span><b>Administrator</b><i>........................................</i></div>
+        </footer>
       </section>
     </div>
   );
