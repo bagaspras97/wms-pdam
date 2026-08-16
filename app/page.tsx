@@ -24,12 +24,8 @@ type View =
   | "reports";
 const nav: [View, string, string][] = [
   ["dashboard", "Ringkasan", "01"],
-  ["activities", "Aktivitas", "02"],
-  ["new", "Aktivitas baru", "03"],
-  ["tools", "Daftar alat", "04"],
-  ["references", "Area & dusun", "05"],
-  ["repairs", "Kode perbaikan", "06"],
-  ["reports", "Laporan", "07"],
+  ["activities", "Opname", "02"],
+  ["reports", "Laporan", "03"],
 ];
 const routeFor = (view: View, id?: string) => view === "dashboard" ? "/" : view === "detail" && id ? `/aktivitas/${encodeURIComponent(id)}` : `/${view === "new" ? "aktivitas-baru" : view}`;
 const viewForPath = (path: string): { view: View; id?: string } => {
@@ -61,6 +57,7 @@ export default function App() {
     [data, setData] = useState<DemoState>(initialState),
     [selected, setSelected] = useState<string>(),
     [menuOpen, setMenuOpen] = useState(false),
+    [inputDataOpen, setInputDataOpen] = useState(true),
     [toast, setToast] = useState(""),
     [remoteReady, setRemoteReady] = useState(!supabase);
   useEffect(() => {
@@ -141,11 +138,12 @@ export default function App() {
   const visibleActivities = data.activities;
   const visibleData = { ...data, activities: visibleActivities };
   const current = visibleActivities.find((x) => x.id === selected);
+  const saveActivity = (a: Activity) => setData((d) => ({ ...d, activities: [a, ...d.activities], tools: [...d.tools, ...(a.toolsUsed ?? []).filter((tool) => !d.tools.some((saved) => saved.toLowerCase() === tool.toLowerCase()))], regions: d.regions.map((region) => { const hamlets = region.hamlets ?? []; return region.code === a.regionCode && a.hamlet && !hamlets.some((name) => name.toLowerCase() === a.hamlet?.toLowerCase()) ? { ...region, hamlets: [...hamlets, a.hamlet] } : region; }) }));
   return (
     <div className="shell">
       <aside className={`sidebar ${menuOpen ? "mobile-open" : ""}`}>
         <div className="brand">
-          <div className="brandmark">M</div>
+          <img className="brand-logo" src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana" />
           <div>
             <strong>Monitor PDAM</strong>
             <small>Aktivitas lapangan</small>
@@ -164,8 +162,18 @@ export default function App() {
               >
                 <b className="mono">{n}</b>
                 <span>{l}</span>
-              </button>
-            ))}
+                </button>
+              ))}
+          {role === "admin" && <div className="nav-group">
+            <button type="button" className="nav-group-trigger" onClick={() => setInputDataOpen(!inputDataOpen)} aria-expanded={inputDataOpen}>
+              <b className="mono">04</b><span>Input data</span><i aria-hidden="true">{inputDataOpen ? "−" : "+"}</i>
+            </button>
+            {inputDataOpen && <div className="nav-submenu">
+              <button className={view === "tools" ? "active" : ""} onClick={() => { go("tools"); setMenuOpen(false); }}>Daftar alat</button>
+              <button className={view === "references" ? "active" : ""} onClick={() => { go("references"); setMenuOpen(false); }}>Area & dusun</button>
+              <button className={view === "repairs" ? "active" : ""} onClick={() => { go("repairs"); setMenuOpen(false); }}>Kode perbaikan</button>
+            </div>}
+          </div>}
         </nav>
         <div className="demo-chip">DEMO · {role.toUpperCase()}</div>
         <div className="sidebar-foot">
@@ -209,7 +217,7 @@ export default function App() {
           <Dashboard data={visibleData} go={go} open={open} role={role} />
         )}{" "}
         {view === "activities" && (
-          <Activities data={visibleData} open={open} go={go} role={role} />
+          <Activities data={visibleData} open={open} go={go} role={role} regions={data.regions} repairCodes={data.repairCodes} masterTools={data.tools} save={(a) => { saveActivity(a); flash(`${a.id} berhasil dibuat`); }} update={(a) => { update(a); flash("Opname diperbarui"); }} remove={(id) => { setData((state) => ({ ...state, activities: state.activities.filter((activity) => activity.id !== id) })); flash("Opname dihapus"); }} />
         )}{" "}
         {view === "new" && (
           <NewActivity
@@ -252,21 +260,6 @@ function Login({ submit }: { submit: () => void }) {
   const [error, setError] = useState("");
   return (
     <main className="login">
-      <section className="login-art">
-        <div className="login-brand"><span className="login-brandmark">M</span><div><strong>Monitor PDAM</strong><small>Operasional lapangan</small></div></div>
-        <div>
-          <h1>
-            Aktivitas lapangan
-            <br />
-            tercatat lebih jelas.
-          </h1>
-          <p>
-            Kelola pekerjaan, area, tarif perbaikan, alat, dan pembayaran
-            melalui satu sistem operasional.
-          </p>
-        </div>
-        <small className="login-art-foot">PDAM · Zona waktu WITA</small>
-      </section>
       <section className="login-form">
         <form
           className="login-card"
@@ -281,11 +274,9 @@ function Login({ submit }: { submit: () => void }) {
             );
           }}
         >
-          <div className="eyebrow green">MONITOR PDAM</div>
-          <h2>Masuk ke sistem</h2>
-          <p className="subtitle">
-            Gunakan akun admin untuk mengelola aktivitas operasional.
-          </p>
+          <div className="login-logo-wrap">
+            <img className="login-logo" src="/brand/tirta-amertha-buana.webp" alt="Tirta Amertha Buana" />
+          </div>
           {error && <div className="login-error">{error}</div>}
           <label>
             Username
@@ -362,13 +353,6 @@ function Dashboard({
           role === "admin"
             ? "Ringkasan pekerjaan operasional PDAM."
             : "Aktivitas yang ditugaskan kepada tim Anda."
-        }
-        action={
-          role === "admin" ? (
-            <button className="btn primary" onClick={() => go("new")}>
-              Buat aktivitas
-            </button>
-          ) : undefined
         }
       />
       <div className="metrics">
@@ -451,13 +435,27 @@ function Activities({
   open,
   go,
   role,
+  regions,
+  repairCodes,
+  masterTools,
+  save,
+  update,
+  remove,
 }: {
   data: DemoState;
   open: (id: string) => void;
   go: (v: View) => void;
   role: "admin" | "petugas";
+  regions: DemoState["regions"];
+  repairCodes: DemoState["repairCodes"];
+  masterTools: DemoState["tools"];
+  save: (activity: Activity) => void;
+  update: (activity: Activity) => void;
+  remove: (id: string) => void;
 }) {
   const [q, setQ] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editing, setEditing] = useState<Activity | null>(null);
   const rows = data.activities.filter(
     (x) =>
       `${x.id} ${x.name} ${x.address}`
@@ -468,16 +466,16 @@ function Activities({
     <div className="page">
       <Head
         over="Operasional"
-        title={role === "admin" ? "Daftar aktivitas" : "Aktivitas saya"}
+        title={role === "admin" ? "Daftar opname" : "Opname saya"}
         desc={
           role === "admin"
-            ? "Cari pekerjaan berdasarkan nama dan lokasi."
-            : "Menampilkan seluruh pekerjaan operasional."
+            ? "Pantau dan catat opname pekerjaan operasional."
+            : "Menampilkan seluruh opname operasional."
         }
         action={
           role === "admin" ? (
-            <button className="btn primary" onClick={() => go("new")}>
-              Aktivitas baru
+            <button className="btn primary" onClick={() => setModal(true)}>
+              Tambah opname
             </button>
           ) : undefined
         }
@@ -491,8 +489,18 @@ function Activities({
         />
       </div>
       <section className="panel">
-        <ActivityTable rows={rows} open={open} />
+          <ActivityTable rows={rows} open={open} onEdit={(activity) => setEditing(activity)} onDelete={(activity) => {
+            if (!window.confirm(`Hapus opname \"${activity.name}\"?`)) return;
+            remove(activity.id);
+          }} />
       </section>
+      {modal && <div className="opname-modal-backdrop" onMouseDown={() => setModal(false)}>
+        <div className="opname-modal" onMouseDown={(event) => event.stopPropagation()}>
+          <div className="opname-modal-head"><div><span className="eyebrow green">Input opname</span><h2>Tambah opname</h2></div><button type="button" className="btn" onClick={() => setModal(false)} aria-label="Tutup modal">×</button></div>
+          <NewActivity count={data.activities.length} regions={regions} repairCodes={repairCodes} masterTools={masterTools} save={(activity) => { save(activity); setModal(false); }} />
+        </div>
+      </div>}
+      {editing && <div className="opname-modal-backdrop" onMouseDown={() => setEditing(null)}><div className="opname-modal" onMouseDown={(event) => event.stopPropagation()}><div className="opname-modal-head"><div><span className="eyebrow green">Edit opname</span><h2>Perbarui opname</h2></div><button type="button" className="btn" onClick={() => setEditing(null)} aria-label="Tutup modal">×</button></div><NewActivity count={data.activities.length} regions={regions} repairCodes={repairCodes} masterTools={masterTools} initial={editing} save={(activity) => { update(activity); setEditing(null); }} /></div></div>}
     </div>
   );
 }
@@ -500,10 +508,14 @@ function ActivityTable({
   rows,
   open,
   report = false,
+  onEdit,
+  onDelete,
 }: {
   rows: Activity[];
   open: (id: string) => void;
   report?: boolean;
+  onEdit?: (activity: Activity) => void;
+  onDelete?: (activity: Activity) => void;
 }) {
   return (
     <div className="table-wrap">
@@ -514,6 +526,7 @@ function ActivityTable({
              <th>Uraian pekerjaan</th>
              <th>Tanggal</th>
              {report && <><th>Alat</th><th>Harga satuan</th><th>Jumlah titik</th><th>Total harga</th><th>Pembayaran</th></>}
+             {!report && (onEdit || onDelete) && <th>Aksi</th>}
           </tr>
         </thead>
         <tbody>
@@ -529,6 +542,7 @@ function ActivityTable({
                 {late(x) && <b className="late">Terlambat</b>}
               </td>
               {report && <><td>{x.toolsUsed?.join(", ") || "—"}</td><td className="mono">{rupiah(x.repairItems?.[0]?.pricePerPoint ?? 0)}</td><td className="mono">{x.repairItems?.[0]?.points ?? 0}</td><td className="mono"><b>{rupiah((x.repairItems ?? []).reduce((sum, item) => sum + item.pricePerPoint * item.points, 0))}</b></td><td><span className={`payment-badge ${(x.paymentStatus ?? "Belum dibayar").toLowerCase().replaceAll(" ", "-")}`}>{x.paymentStatus ?? "Belum dibayar"}</span></td></>}
+              {!report && (onEdit || onDelete) && <td className="table-actions" onClick={(event) => event.stopPropagation()}>{onEdit && <button type="button" className="btn small" onClick={() => onEdit(x)}>Edit</button>}{onDelete && <button type="button" className="btn danger small" onClick={() => onDelete(x)}>Hapus</button>}</td>}
             </tr>
           ))}
         </tbody>
@@ -564,19 +578,21 @@ function NewActivity({
   repairCodes,
   masterTools,
   save,
+  initial,
 }: {
   count: number;
   regions: DemoState["regions"];
   repairCodes: DemoState["repairCodes"];
   masterTools: DemoState["tools"];
   save: (a: Activity) => void;
+  initial?: Activity;
 }) {
-  const [selectedRepair, setSelectedRepair] = useState(repairCodes[0]?.code ?? "");
-  const [selectedRegion, setSelectedRegion] = useState(regions[0]?.code ?? "");
-  const [selectedHamlet, setSelectedHamlet] = useState("");
-  const [points, setPoints] = useState(1);
+  const [selectedRepair, setSelectedRepair] = useState(initial?.repairItems?.[0]?.code ?? repairCodes[0]?.code ?? "");
+  const [selectedRegion, setSelectedRegion] = useState(initial?.regionCode ?? regions[0]?.code ?? "");
+  const [selectedHamlet, setSelectedHamlet] = useState(initial?.hamlet ?? "");
+  const [points, setPoints] = useState(initial?.repairItems?.[0]?.points ?? 1);
   const [toolInput, setToolInput] = useState("");
-  const [tools, setTools] = useState<string[]>([]);
+  const [tools, setTools] = useState<string[]>(initial?.toolsUsed ?? []);
   const [showToolOptions, setShowToolOptions] = useState(false);
   const repair = repairCodes.find((item) => item.code === selectedRepair);
   const regionHamlets = regions.find((item) => item.code === selectedRegion)?.hamlets ?? [];
@@ -592,7 +608,7 @@ function NewActivity({
     const pointCount = Math.max(1, Number(f.get("points")) || 1);
     const automaticTotal = (selected?.pricePerPoint ?? 0) * pointCount;
     save({
-      id: `AKT-2026-${String(count + 15).padStart(4, "0")}`,
+      id: initial?.id ?? `AKT-2026-${String(count + 15).padStart(4, "0")}`,
       name: String(f.get("name")),
       type: selected?.name ?? "Perbaikan",
       address: `${String(f.get("hamlet"))}, ${region?.name ?? ""}`,
@@ -604,16 +620,14 @@ function NewActivity({
       source: "Internal",
       officer: "—",
       priority: "Normal",
-      status: "Direncanakan",
-      paymentStatus: "Belum dibayar",
-      createdAt: created,
+      status: initial?.status ?? "Direncanakan",
+      paymentStatus: initial?.paymentStatus ?? "Belum dibayar",
+      createdAt: initial?.createdAt ?? created,
       targetDate: String(f.get("target")),
       note: String(f.get("note") || ""),
       files: [],
-      expenses: selected ? [{ id: crypto.randomUUID(), category: "Tarif perbaikan", amount: automaticTotal, note: `${selected.code} · ${selected.name} · ${pointCount} titik × ${rupiah(selected.pricePerPoint)}`, status: "Disetujui" }] : [],
-      history: [
-        { status: "Direncanakan", at: created, note: "Aktivitas dibuat admin" },
-      ],
+      expenses: selected ? [{ id: initial?.expenses?.[0]?.id ?? crypto.randomUUID(), category: "Tarif perbaikan", amount: automaticTotal, note: `${selected.code} · ${selected.name} · ${pointCount} titik × ${rupiah(selected.pricePerPoint)}`, status: "Disetujui" }] : [],
+      history: initial?.history ?? [{ status: "Direncanakan", at: created, note: "Aktivitas dibuat admin" }],
     });
   };
   return (
@@ -631,6 +645,7 @@ function NewActivity({
               className="input"
               name="name"
               required
+              defaultValue={initial?.name}
               placeholder="Contoh: Perbaikan kebocoran pipa distribusi"
             />
           </label>
@@ -659,12 +674,13 @@ function NewActivity({
               name="target"
               type="date"
               min={now}
+              defaultValue={initial?.targetDate?.slice(0, 10)}
               required
             />
           </label>
           <label className="span-2">
             Catatan
-            <textarea className="input" name="note" rows={3} />
+            <textarea className="input" name="note" rows={3} defaultValue={initial?.note} />
           </label>
         </div>
         <div className="form-actions">
@@ -1199,7 +1215,7 @@ function Teams({
 function HamletMasterV2({ data, setData, flash }: { data: DemoState; setData: React.Dispatch<React.SetStateAction<DemoState>>; flash: (message: string) => void }) {
   const [selectedRegion,setSelectedRegion]=useState(data.regions[0]?.code??""),[modal,setModal]=useState(false),[current,setCurrent]=useState(""),[error,setError]=useState("");const region=data.regions.find(x=>x.code===selectedRegion),hamlets=region?.hamlets??[];
   useEffect(()=>{if(!modal)return;const head=document.querySelector(".hamlet-master-panel .master-modal-head");if(!head||head.querySelector(".hamlet-modal-area"))return;const info=document.createElement("div");info.className="hamlet-modal-area";info.textContent=`Area: ${selectedRegion} · ${region?.name??"Belum dipilih"}`;head.insertAdjacentElement("afterend",info);return()=>info.remove()},[modal,selectedRegion,region?.name]);
-  const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const name=String(new FormData(e.currentTarget).get("hamletName")||"").trim();if(!name||!region)return;if(hamlets.some(x=>x.toLowerCase()===name.toLowerCase()&&x!==current))return setError("Dusun sudah tersedia.");setData(s=>({...s,regions:s.regions.map(r=>r.code===selectedRegion?{...r,hamlets:modal? (r.hamlets??[]).map(x=>x===current?name:x):[...(r.hamlets??[]),name]}:r)}));setModal(false);setError("");flash(current?"Dusun diperbarui":"Dusun ditambahkan")};
+   const save=(e:FormEvent<HTMLFormElement>)=>{e.preventDefault();const name=String(new FormData(e.currentTarget).get("hamletName")||"").trim();if(!name||!region)return;if(hamlets.some(x=>x.toLowerCase()===name.toLowerCase()&&x!==current))return setError("Dusun sudah tersedia.");setData(s=>({...s,regions:s.regions.map(r=>r.code===selectedRegion?{...r,hamlets:current?(r.hamlets??[]).map(x=>x===current?name:x):[...(r.hamlets??[]),name]}:r),activities:current?s.activities.map(a=>a.regionCode===selectedRegion&&a.hamlet===current?{...a,hamlet:name}:a):s.activities}));setModal(false);setError("");flash(current?"Dusun diperbarui":"Dusun ditambahkan")};
   return <section className="panel hamlet-master-panel"><div className="panel-head"><h2>Dusun berdasarkan area</h2><span>{hamlets.length} dusun</span><button className="btn primary" type="button" onClick={()=>{setCurrent("");setError("");setModal(true)}}>Tambah dusun</button></div><div className="master-region-filter"><label>Area<AppSelect value={selectedRegion} onValueChange={setSelectedRegion} options={data.regions.map(r=>({value:r.code,label:`${r.code} · ${r.name}`}))}/></label></div><div className="table-wrap"><table><thead><tr><th>Nama dusun</th><th>Status penggunaan</th><th>Aksi</th></tr></thead><tbody>{hamlets.map(x=><tr key={x}><td><b>{x}</b></td><td>Belum digunakan</td><td className="master-actions"><button className="btn small" type="button" onClick={()=>{setCurrent(x);setError("");setModal(true)}}>Edit</button></td></tr>)}</tbody></table></div>{modal&&<div className="master-modal-backdrop" onMouseDown={()=>setModal(false)}><div className="master-modal" onMouseDown={e=>e.stopPropagation()}><div className="master-modal-head"><h2>{current?"Edit dusun":"Tambah dusun"}</h2><button type="button" onClick={()=>setModal(false)}>×</button></div><form onSubmit={save}><label>Nama dusun<input className="input" name="hamletName" defaultValue={current} required placeholder="Contoh: Dusun Taman"/></label>{error&&<small className="error">{error}</small>}<div className="form-actions"><button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button><button className="btn primary">Simpan</button></div></form></div></div>}</section>;
 }
 
@@ -1286,7 +1302,8 @@ function RepairMaster({ data, setData, flash }: { data: DemoState; setData: Reac
 
 function Reports({ data }: { data: DemoState }) {
   const [from, setFrom] = useState(""), [to, setTo] = useState(""), [region, setRegion] = useState(""), [repair, setRepair] = useState(""), [payment, setPayment] = useState(""), [sort, setSort] = useState("newest"), [filterOpen, setFilterOpen] = useState(false);
-  const filteredBase = data.activities.filter((activity) => { const day = activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
+  const resetFilters = () => { setFrom(""); setTo(""); setRegion(""); setRepair(""); setPayment(""); setSort("newest"); };
+   const filteredBase = data.activities.filter((activity) => { const day = activity.targetDate?.slice(0, 10) || activity.createdAt.slice(0, 10); return (!from || day >= from) && (!to || day <= to) && (!region || activity.regionCode === region) && (!repair || activity.repairItems?.some((item) => item.code === repair)) && (!payment || (activity.paymentStatus ?? "Belum dibayar") === payment); });
   const filtered = [...filteredBase].sort((a, b) => sort === "oldest" ? a.createdAt.localeCompare(b.createdAt) : sort === "name" ? a.name.localeCompare(b.name) : b.createdAt.localeCompare(a.createdAt));
   const approved = filtered
     .flatMap((x) => x.expenses)
@@ -1383,7 +1400,7 @@ function Reports({ data }: { data: DemoState }) {
                <label>Urutkan<AppSelect value={sort} onValueChange={setSort} options={[{value:"newest",label:"Terbaru"},{value:"oldest",label:"Terlama"},{value:"name",label:"Nama pekerjaan"}]}/></label>
              </div>
            </section>
-           <div className="report-filter-modal-actions"><button type="button" className="btn primary" onClick={()=>setFilterOpen(false)}>Tampilkan hasil</button></div>
+            <div className="report-filter-modal-actions"><button type="button" className="btn" onClick={resetFilters}>Reset filter</button><button type="button" className="btn primary" onClick={()=>setFilterOpen(false)}>Tampilkan hasil</button></div>
          </div>
          <ActivityTable rows={filtered} open={() => {}} report />
       </section>

@@ -13,5 +13,5 @@ import "./tools.css";
 import "./payment.css";
 import "./reports.css";
 import { StatusChangeGuard } from "@/components/status-change-guard";
-export const metadata={title:"WMS PDAM",description:"Sistem manajemen gudang internal PDAM"};
+export const metadata={title:"Monitor PDAM",description:"Sistem monitoring aktivitas operasional PDAM Tirta Amertha Buana",icons:{icon:"/brand/tirta-amertha-buana.webp"}};
 export default function RootLayout({children}:{children:React.ReactNode}){return <html lang="id"><body><StatusChangeGuard/>{children}</body></html>}
