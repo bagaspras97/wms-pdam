@@ -607,7 +607,7 @@ function NewActivity({
     });
   };
   return (
-    <div className="page">
+    <div className={`page ${initial ? "opname-edit-form" : "opname-create-form"}`}>
       <Head
         over="Penugasan"
         title="Buat aktivitas baru"
@@ -641,7 +641,7 @@ function NewActivity({
             Jumlah titik
             <input className="input" name="points" type="number" min="1" step="1" value={points} onChange={(event) => setPoints(Math.max(1, Number(event.target.value)))} required />
           </label>
-          <div className="repair-estimate span-2"><span>Harga per titik <b>{rupiah(repair?.pricePerPoint ?? 0)}</b></span><span>Total otomatis disetujui <strong>{rupiah((repair?.pricePerPoint ?? 0) * points)}</strong></span></div>
+          <div className="repair-estimate span-2"><span>Harga per titik <b>{rupiah(repair?.pricePerPoint ?? 0)}</b></span><span>Total harga <strong>{rupiah((repair?.pricePerPoint ?? 0) * points)}</strong></span></div>
           <div className="tool-field span-2"><label>Jenis alat yang digunakan</label><div className="tool-input-wrap"><div className="tool-picker"><input className="input" value={toolInput} onFocus={()=>setShowToolOptions(true)} onChange={(event)=>{setToolInput(event.target.value);setShowToolOptions(true)}} onKeyDown={(event)=>{if(event.key==="Enter"){event.preventDefault();addTool()}if(event.key==="Escape")setShowToolOptions(false)}} placeholder="Pilih atau ketik alat lalu tekan Enter"/><button className="tool-picker-toggle" type="button" aria-label="Buka daftar alat" aria-expanded={showToolOptions} onClick={()=>setShowToolOptions(!showToolOptions)}><span aria-hidden="true"/></button>{showToolOptions&&<div className="tool-options">{availableTools.length?availableTools.map((item)=><button type="button" key={item} onClick={()=>addToolValue(item)}>{item}</button>):<span>{toolInput.trim()?"Tidak ada alat yang cocok. Tekan Enter untuk menambahkan alat baru.":"Belum ada alat lain yang tersedia."}</span>}</div>}</div><button type="button" className="btn" onClick={addTool}>Tambah</button></div><div className="tool-tags">{tools.map(item=><span className="tool-tag" key={item}>{item}<button type="button" aria-label={`Hapus ${item}`} onClick={()=>setTools(tools.filter(tool=>tool!==item))}>×</button></span>)}</div><small className="tool-helper">Klik kolom untuk melihat semua alat, atau ketik alat baru lalu tekan Enter.</small></div>
           <label>
              Tanggal
@@ -654,10 +654,7 @@ function NewActivity({
               required
             />
           </label>
-          <label className="span-2">
-            Catatan
-            <textarea className="input" name="note" rows={3} defaultValue={initial?.note} />
-          </label>
+          {initial && <label className="span-2">Catatan<textarea className="input" name="note" rows={3} defaultValue={initial.note} /></label>}
         </div>
         <div className="form-actions">
           <button className="btn primary">Buat</button>
